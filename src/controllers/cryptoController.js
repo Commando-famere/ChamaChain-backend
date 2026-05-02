@@ -230,3 +230,36 @@ module.exports = {
     getDepositAddress,
     simulatePaymentConfirmation  // Keep for testing, remove in production
 };
+
+// Cancel pending transaction
+async function cancelPayment(req, res) {
+    try {
+        const { orderId } = req.params;
+        
+        await query(
+            `UPDATE transaction_ledger 
+             SET status = 'cancelled'
+             WHERE transaction_reference = $1 AND status = 'pending'`,
+            [orderId]
+        );
+        
+        res.json({
+            success: true,
+            message: 'Payment cancelled successfully'
+        });
+
+    } catch (error) {
+        console.error('Cancel payment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to cancel payment', code: 500 });
+    }
+}
+
+module.exports = { 
+    initiateContributionPayment, 
+    paymentWebhook,
+    verifyContributionPayment, 
+    getPaymentHistory,
+    getDepositAddress,
+    simulatePaymentConfirmation,
+    cancelPayment
+};

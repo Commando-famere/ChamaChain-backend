@@ -31,3 +31,6 @@ module.exports = router;
 
 // Get USDT deposit address
 router.get('/deposit-address', getDepositAddress);
+
+// Cancel pending payment
+router.delete('/cancel/:orderId', cancelPayment);
