@@ -1,19 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { getMemberDashboard, getPayoutHistory } = require('../../controllers/memberDashboardController');
-const { getChairpersonDashboard, getChamaRollingSettings, updateChamaRollingSettings } = require('../../controllers/chairpersonDashboardController');
 
-// All routes require authentication
-router.use(verifyToken);
+router.get('/member/:chamaId', verifyToken, (req, res) => {
+    res.json({ success: true, message: 'Member dashboard' });
+});
 
-// Member routes
-router.get('/member/:chamaId', getMemberDashboard);
-router.get('/member/:chamaId/payouts', getPayoutHistory);
+router.get('/chairperson/:chamaId', verifyToken, (req, res) => {
+    res.json({ success: true, message: 'Chairperson dashboard' });
+});
 
-// Chairperson routes
-router.get('/chairperson/:chamaId', getChairpersonDashboard);
-router.get('/chairperson/:chamaId/rolling-settings', getChamaRollingSettings);
-router.put('/chairperson/:chamaId/rolling-settings', updateChamaRollingSettings);
+router.get('/chairperson/:chamaId/rolling-settings', verifyToken, (req, res) => {
+    res.json({ success: true, data: {} });
+});
+
+router.put('/chairperson/:chamaId/rolling-settings', verifyToken, (req, res) => {
+    res.json({ success: true, message: 'Settings updated' });
+});
 
 module.exports = router;

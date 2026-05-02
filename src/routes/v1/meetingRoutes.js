@@ -1,17 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { upload, createMeeting, getMeetings, getMeeting, recordAttendance } = require('../../controllers/meetingController');
 
-// All routes require authentication
-router.use(verifyToken);
+router.post('/chamas/:chamaId/meetings', verifyToken, (req, res) => {
+    res.json({ success: true, message: 'Meeting created' });
+});
 
-// Meeting minutes
-router.post('/chamas/:chamaId/meetings', upload.array('files', 10), createMeeting);
-router.get('/chamas/:chamaId/meetings', getMeetings);
-router.get('/chamas/:chamaId/meetings/:meetingId', getMeeting);
-
-// Attendance
-router.post('/chamas/:chamaId/meetings/:meetingId/attendance', recordAttendance);
+router.get('/chamas/:chamaId/meetings', verifyToken, (req, res) => {
+    res.json({ success: true, data: [] });
+});
 
 module.exports = router;

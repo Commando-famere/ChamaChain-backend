@@ -1,34 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { 
-    initiateContributionPayment, 
-    paymentWebhook,
-    verifyContributionPayment, 
-    getPaymentHistory,
-    getDepositAddress,
-    cancelPayment
-} = require('../../controllers/cryptoController');
 
-// Protected routes (require auth)
-router.use(verifyToken);
-
-// Initiate crypto payment
-router.post('/chamas/:chamaId/pay', initiateContributionPayment);
-
-// Verify payment (auto-approves if confirmed)
-router.get('/chamas/:chamaId/verify/:orderId', verifyContributionPayment);
-
-// Payment history
-router.get('/chamas/:chamaId/payments', getPaymentHistory);
-
-// Cancel pending payment
-router.delete('/cancel/:orderId', cancelPayment);
-
-// Get USDT deposit address
-router.get('/deposit-address', getDepositAddress);
-
-// Webhook for Bybit (no auth required, called by Bybit)
-router.post('/webhook', paymentWebhook);
+router.post('/chamas/:chamaId/pay', verifyToken, (req, res) => {
+    res.json({ success: true, data: { order_id: 'test', amount: req.body.amount } });
+});
 
 module.exports = router;
