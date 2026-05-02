@@ -6,7 +6,8 @@ const {
     paymentWebhook,
     verifyContributionPayment, 
     getPaymentHistory,
-    simulatePaymentConfirmation
+    getDepositAddress,
+    cancelPayment
 } = require('../../controllers/cryptoController');
 
 // Protected routes (require auth)
@@ -21,16 +22,13 @@ router.get('/chamas/:chamaId/verify/:orderId', verifyContributionPayment);
 // Payment history
 router.get('/chamas/:chamaId/payments', getPaymentHistory);
 
-// Simulate payment confirmation (for testing only - remove in production)
-router.post('/simulate/:orderId/confirm', simulatePaymentConfirmation);
+// Cancel pending payment
+router.delete('/cancel/:orderId', cancelPayment);
+
+// Get USDT deposit address
+router.get('/deposit-address', getDepositAddress);
 
 // Webhook for Bybit (no auth required, called by Bybit)
 router.post('/webhook', paymentWebhook);
 
 module.exports = router;
-
-// Get USDT deposit address
-router.get('/deposit-address', getDepositAddress);
-
-// Cancel pending payment
-router.delete('/cancel/:orderId', cancelPayment);

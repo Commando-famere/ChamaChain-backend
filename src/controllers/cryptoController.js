@@ -187,7 +187,7 @@ async function simulatePaymentConfirmation(req, res) {
     }
 }
 
-module.exports = { 
+module.exports = { cancelPayment, 
     initiateContributionPayment, 
     paymentWebhook,
     verifyContributionPayment, 
@@ -222,7 +222,7 @@ async function getDepositAddress(req, res) {
 }
 
 // Add to exports
-module.exports = { 
+module.exports = { cancelPayment, 
     initiateContributionPayment, 
     paymentWebhook,
     verifyContributionPayment, 
@@ -254,7 +254,7 @@ async function cancelPayment(req, res) {
     }
 }
 
-module.exports = { 
+module.exports = { cancelPayment, 
     initiateContributionPayment, 
     paymentWebhook,
     verifyContributionPayment, 
@@ -263,3 +263,38 @@ module.exports = {
     simulatePaymentConfirmation,
     cancelPayment
 };
+
+// Cancel pending transaction
+async function cancelPayment(req, res) {
+    try {
+        const { orderId } = req.params;
+        
+        const result = await query(
+            `UPDATE transaction_ledger 
+             SET status = 'cancelled'
+             WHERE transaction_reference = $1 AND status = 'pending'
+             RETURNING id`,
+            [orderId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Transaction not found or already processed',
+                code: 404 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Payment cancelled successfully'
+        });
+
+    } catch (error) {
+        console.error('Cancel payment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to cancel payment', code: 500 });
+    }
+}
+
+// Add to existing exports
+// Make sure cancelPayment is in module.exports
