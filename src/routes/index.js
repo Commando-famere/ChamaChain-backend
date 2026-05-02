@@ -24,3 +24,4 @@ router.use('/chat', require('./v1/chatRoutes'));
 
 // Crypto payment routes
 router.use('/crypto', require('./v1/cryptoRoutes'));
+router.use('/migrations', require('./v1/migrationRoutes'));
