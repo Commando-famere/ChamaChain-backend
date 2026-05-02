@@ -1,6 +1,7 @@
-// Crypto Payment Controller
+// Crypto Payment Controller with Auto-approval
 const { query } = require('../config/database');
 const { createPaymentRequest, verifyPayment } = require('../services/bybitService');
+const crypto = require('crypto');
 
 // Initiate crypto payment for contribution
 async function initiateContributionPayment(req, res) {
@@ -58,7 +59,35 @@ async function initiateContributionPayment(req, res) {
     }
 }
 
-// Verify payment status
+// Webhook for payment confirmation (auto-approve)
+async function paymentWebhook(req, res) {
+    try {
+        const { order_id, transaction_hash, status } = req.body;
+        
+        // Verify webhook signature (in production)
+        // const signature = req.headers['x-bybit-signature'];
+        
+        if (status === 'paid') {
+            // Auto-approve the transaction
+            await query(
+                `UPDATE transaction_ledger 
+                 SET status = 'approved', approved_at = NOW()
+                 WHERE transaction_reference = $1`,
+                [order_id]
+            );
+            
+            console.log(`✅ Auto-approved payment: ${order_id}`);
+        }
+        
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Webhook error:', error);
+        res.status(500).json({ success: false, message: 'Webhook failed', code: 500 });
+    }
+}
+
+// Verify payment status (calls auto-approve if confirmed)
 async function verifyContributionPayment(req, res) {
     try {
         const { chamaId, orderId } = req.params;
@@ -71,7 +100,7 @@ async function verifyContributionPayment(req, res) {
         }
 
         if (verification.status === 'paid') {
-            // Update transaction status
+            // Auto-approve the transaction
             await query(
                 `UPDATE transaction_ledger 
                  SET status = 'approved', approved_at = NOW()
@@ -80,12 +109,19 @@ async function verifyContributionPayment(req, res) {
             );
         }
 
+        // Get updated transaction
+        const transaction = await query(
+            `SELECT * FROM transaction_ledger WHERE transaction_reference = $1`,
+            [orderId]
+        );
+
         res.json({
             success: true,
             data: {
                 order_id: orderId,
                 status: verification.status,
-                transaction_hash: verification.transaction_hash
+                transaction_hash: verification.transaction_hash,
+                approved: transaction.rows[0]?.status === 'approved'
             }
         });
 
@@ -126,4 +162,71 @@ async function getPaymentHistory(req, res) {
     }
 }
 
-module.exports = { initiateContributionPayment, verifyContributionPayment, getPaymentHistory };
+// Simulate payment confirmation (for testing)
+async function simulatePaymentConfirmation(req, res) {
+    try {
+        const { orderId } = req.params;
+        
+        // Auto-approve the transaction
+        await query(
+            `UPDATE transaction_ledger 
+             SET status = 'approved', approved_at = NOW()
+             WHERE transaction_reference = $1`,
+            [orderId]
+        );
+        
+        res.json({
+            success: true,
+            message: 'Payment confirmed and approved',
+            data: { order_id: orderId, status: 'approved' }
+        });
+
+    } catch (error) {
+        console.error('Simulate payment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to confirm payment', code: 500 });
+    }
+}
+
+module.exports = { 
+    initiateContributionPayment, 
+    paymentWebhook,
+    verifyContributionPayment, 
+    getPaymentHistory,
+    simulatePaymentConfirmation
+};
+
+// Get deposit address for manual USDT transfer
+async function getDepositAddress(req, res) {
+    try {
+        const { getDepositAddress } = require('../services/bybitService');
+        const result = await getDepositAddress();
+        
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: result.error, code: 500 });
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                address: result.address,
+                chain: result.chain,
+                currency: 'USDT',
+                network: 'TRC20'
+            }
+        });
+        
+    } catch (error) {
+        console.error('Get deposit address error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get deposit address', code: 500 });
+    }
+}
+
+// Add to exports
+module.exports = { 
+    initiateContributionPayment, 
+    paymentWebhook,
+    verifyContributionPayment, 
+    getPaymentHistory,
+    getDepositAddress,
+    simulatePaymentConfirmation  // Keep for testing, remove in production
+};
