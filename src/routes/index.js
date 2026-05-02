@@ -15,3 +15,12 @@ router.use('/profile', require('./v1/profileRoutes'));
 router.use('/dashboard', require('./v1/dashboardRoutes'));
 
 module.exports = router;
+
+// Meeting routes
+router.use('/meetings', require('./v1/meetingRoutes'));
+
+// Chat routes
+router.use('/chat', require('./v1/chatRoutes'));
+
+// Crypto payment routes
+router.use('/crypto', require('./v1/cryptoRoutes'));
