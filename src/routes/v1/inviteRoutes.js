@@ -60,7 +60,8 @@ router.get('/verify', async (req, res) => {
             { name: "email", label: "Email", type: "email", required: false }
         ];
         
-        res.json({
+        // Binary support handled by middleware
+    const response = {
             success: true,
             message: 'Invite link is valid',
             data: {
@@ -169,7 +170,8 @@ router.post('/register', async (req, res) => {
             { expiresIn: '7d' }
         );
         
-        res.json({
+        // Binary support handled by middleware
+    const response = {
             success: true,
             message: 'Registration successful! You have joined the chama.',
             data: {
@@ -223,7 +225,8 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
         const baseUrl = process.env.BASE_URL || 'https://marvelous-nourishment-production-fef4.up.railway.app';
         const inviteLink = `${baseUrl}/invite?token=${token}`;
         
-        res.json({
+        // Binary support handled by middleware
+    const response = {
             success: true,
             data: {
                 invite_id: result.rows[0].id,
@@ -308,7 +311,8 @@ router.post('/accept/:token', async (req, res) => {
             { expiresIn: '7d' }
         );
         
-        res.json({
+        // Binary support handled by middleware
+    const response = {
             success: true,
             message: 'Joined chama successfully',
             data: {
@@ -335,7 +339,8 @@ router.post('/reject/:token', async (req, res) => {
         
         await query(`UPDATE invitations SET status = 'expired' WHERE token = $1`, [token]);
         
-        res.json({ success: true, message: 'Invite declined' });
+        // Binary support handled by middleware
+    const response = { success: true, message: 'Invite declined' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -355,7 +360,8 @@ router.get('/chamas/:chamaId/pending', verifyToken, isChairperson, async (req, r
             [chamaId]
         );
         
-        res.json({ success: true, data: pending.rows });
+        // Binary support handled by middleware
+    const response = { success: true, data: pending.rows });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -387,7 +393,8 @@ router.post('/chamas/:chamaId/pending/:pendingId/approve', verifyToken, isChairp
         
         await query(`UPDATE pending_members SET status = 'approved' WHERE id = $1`, [pendingId]);
         
-        res.json({ success: true, message: 'Member approved' });
+        // Binary support handled by middleware
+    const response = { success: true, message: 'Member approved' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
