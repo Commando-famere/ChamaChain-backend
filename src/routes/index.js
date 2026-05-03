@@ -29,3 +29,6 @@ router.get('/test', (req, res) => {
 });
 
 module.exports = router;
+
+// Invite routes
+router.use('/invites', require('./v1/inviteRoutes'));
