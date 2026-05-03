@@ -191,3 +191,42 @@ router.post('/chamas/:chamaId/pending/:pendingId/approve', verifyToken, isChairp
 });
 
 module.exports = router;
+
+// Verify invite token (check if valid before showing registration form)
+router.get('/verify/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        
+        const result = await query(
+            `SELECT i.role, i.expires_at, i.status, 
+                    c.name as chama_name, c.plan as chama_plan
+             FROM invitations i
+             JOIN chamas c ON i.chama_id = c.id
+             WHERE i.token = $1 AND i.status = 'pending' AND i.expires_at > NOW()`,
+            [token]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Invalid or expired invite link',
+                code: 404
+            });
+        }
+        
+        const invite = result.rows[0];
+        
+        res.json({
+            success: true,
+            message: 'Invite link is valid',
+            data: {
+                chama_name: invite.chama_name,
+                role: invite.role,
+                expires_at: invite.expires_at
+            }
+        });
+    } catch (error) {
+        console.error('Verify invite error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
