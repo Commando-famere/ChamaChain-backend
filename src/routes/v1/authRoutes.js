@@ -11,7 +11,6 @@ router.post('/register', async (req, res) => {
     try {
         const { phone, full_name, password } = req.body;
         
-        // Check if user exists
         const existing = await query(`SELECT id FROM users WHERE phone = $1`, [phone]);
         if (existing.rows.length > 0) {
             return res.status(409).json({ success: false, message: 'User already exists' });
@@ -29,8 +28,15 @@ router.post('/register', async (req, res) => {
         );
         
         const user = result.rows[0];
+        
+        // Create unique token for this user
         const token = jwt.sign(
-            { id: user.id, phone: user.phone, full_name: user.full_name },
+            { 
+                id: user.id, 
+                phone: user.phone, 
+                full_name: user.full_name,
+                global_user_id: user.global_user_id
+            },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -42,7 +48,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Login
+// Login - returns unique token for this specific user
 router.post('/login', async (req, res) => {
     try {
         const { phone, password } = req.body;
@@ -59,8 +65,14 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         
+        // Create unique token containing user's ID
         const token = jwt.sign(
-            { id: user.id, phone: user.phone, full_name: user.full_name },
+            { 
+                id: user.id, 
+                phone: user.phone, 
+                full_name: user.full_name,
+                global_user_id: user.global_user_id
+            },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
