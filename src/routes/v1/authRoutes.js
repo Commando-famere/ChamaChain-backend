@@ -11,6 +11,12 @@ router.post('/register', async (req, res) => {
     try {
         const { phone, full_name, password } = req.body;
         
+        // Check if user exists
+        const existing = await query(`SELECT id FROM users WHERE phone = $1`, [phone]);
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ success: false, message: 'User already exists' });
+        }
+        
         const hashedPassword = await bcrypt.hash(password, 12);
         const randomNum = Math.floor(Math.random() * 900000) + 100000;
         const global_user_id = `USR-${randomNum}`;
@@ -22,7 +28,14 @@ router.post('/register', async (req, res) => {
             [phone, full_name, hashedPassword, global_user_id]
         );
         
-        res.json({ success: true, data: result.rows[0] });
+        const user = result.rows[0];
+        const token = jwt.sign(
+            { id: user.id, phone: user.phone, full_name: user.full_name },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        
+        res.json({ success: true, data: { user, token } });
     } catch (error) {
         console.error('Register error:', error);
         res.status(500).json({ success: false, message: error.message });
@@ -35,7 +48,6 @@ router.post('/login', async (req, res) => {
         const { phone, password } = req.body;
         
         const result = await query(`SELECT * FROM users WHERE phone = $1`, [phone]);
-        
         if (result.rows.length === 0) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }

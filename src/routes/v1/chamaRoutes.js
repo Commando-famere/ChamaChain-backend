@@ -5,14 +5,13 @@ const { query } = require('../../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chamachain-secret';
 
-// Middleware to verify token
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ success: false, message: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
     try {
+        const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
@@ -36,7 +35,6 @@ router.post('/', verifyToken, async (req, res) => {
         
         const chama = result.rows[0];
         
-        // Add creator as chairperson
         await query(
             `INSERT INTO group_members (chama_id, user_id, role, chama_member_id)
              VALUES ($1, $2, 'chairperson', 'M-001')`,
@@ -50,7 +48,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-// Get user's chamas
+// Get chamas
 router.get('/', verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
