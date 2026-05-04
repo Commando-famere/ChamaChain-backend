@@ -13,9 +13,16 @@ const SETUP_FEES = {
     full_money: 50
 };
 
-// Withdrawal fee structure
+// Withdrawal fees
 const WITHDRAWAL_FEE_KES = 25;  // Platform fee
 const BYBIT_NETWORK_FEE_USDT = 0.5;  // Bybit charges $0.50
+
+// Withdrawal methods
+const WITHDRAWAL_METHODS = {
+    BANK: 'bank',
+    MOBILE_MONEY: 'mobile_money',
+    CRYPTO: 'crypto'
+};
 
 const FREE_TIER_MAX_MEMBERS = 10;
 
@@ -31,6 +38,7 @@ module.exports = {
     SETUP_FEES,
     WITHDRAWAL_FEE_KES,
     BYBIT_NETWORK_FEE_USDT,
+    WITHDRAWAL_METHODS,
     FREE_TIER_MAX_MEMBERS,
     ROLES
 };
