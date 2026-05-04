@@ -2,7 +2,6 @@ const { query } = require('../config/database');
 const { WITHDRAWAL_FEE_KES, WITHDRAWAL_METHODS } = require('../config/constants');
 const { processWithdrawal } = require('../services/withdrawalService');
 
-// Request withdrawal with method selection
 const requestWithdrawal = async (req, res) => {
     try {
         const { chamaId } = req.params;
@@ -19,7 +18,6 @@ const requestWithdrawal = async (req, res) => {
             crypto_network
         } = req.body;
         
-        // Validate withdrawal method
         if (!Object.values(WITHDRAWAL_METHODS).includes(method)) {
             return res.status(400).json({
                 success: false,
@@ -27,7 +25,6 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Validate minimum amount
         if (amount_kes < 200) {
             return res.status(400).json({
                 success: false,
@@ -35,18 +32,17 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Validate method-specific fields
         if (method === 'bank' && (!bank_name || !bank_account_name || !bank_account_number)) {
             return res.status(400).json({
                 success: false,
-                message: 'Bank details required: bank_name, bank_account_name, bank_account_number'
+                message: 'Bank details required'
             });
         }
         
         if (method === 'mobile_money' && (!mobile_network || !mobile_number)) {
             return res.status(400).json({
                 success: false,
-                message: 'Mobile money details required: mobile_network (mpesa/airtel), mobile_number'
+                message: 'Mobile money details required'
             });
         }
         
@@ -57,7 +53,6 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Get member
         const memberResult = await query(
             `SELECT id FROM group_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
             [chamaId, userId]
@@ -69,18 +64,12 @@ const requestWithdrawal = async (req, res) => {
         
         const memberId = memberResult.rows[0].id;
         
-        // Convert KES to USDT (approximate rate)
         const usdRate = 130;
         const amount_usdt = amount_kes / usdRate;
-        
-        // Calculate fees
         const platformFeeKes = WITHDRAWAL_FEE_KES;
         const amountAfterPlatformFee = amount_kes - platformFeeKes;
-        
-        // For crypto, amount to send is in USDT
         const amountToSendCrypto = amountAfterPlatformFee / usdRate;
         
-        // Check balance
         const balanceResult = await query(
             `SELECT COALESCE(SUM(CASE WHEN transaction_type = 'deposit' THEN amount_usdt ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount_usdt ELSE 0 END), 0) as balance
@@ -98,7 +87,6 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Prepare withdrawal details based on method
         let withdrawalDetails = {};
         let destinationDisplay = '';
         
@@ -123,17 +111,16 @@ const requestWithdrawal = async (req, res) => {
                     address: crypto_address,
                     network: crypto_network || 'TRC20'
                 };
-                destinationDisplay = `${crypto_address.substring(0, 10)}...${crypto_address.substring(crypto_address.length - 6)}`;
+                destinationDisplay = `${crypto_address.substring(0, 10)}...`;
                 break;
         }
         
-        // Create withdrawal request
         const withdrawalResult = await query(
             `INSERT INTO transaction_ledger 
              (chama_id, member_id, transaction_type, amount_usdt, amount_kes, withdrawal_fee_kes, 
               status, destination_wallet, withdrawal_method, bank_name, bank_account_name, bank_account_number,
               mobile_network, mobile_number, crypto_network)
-             VALUES ($1, $2, 'withdrawal', $3, $4, $5, 'processing', $6, $7, $8, $9, $10, $11, $12, $13)
+             VALUES ($1, $2, 'withdrawal', $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING id`,
             [
                 chamaId, memberId, amount_usdt, amount_kes, platformFeeKes,
@@ -150,7 +137,6 @@ const requestWithdrawal = async (req, res) => {
         
         const withdrawalId = withdrawalResult.rows[0].id;
         
-        // Process withdrawal based on method
         let processResult;
         
         if (method === 'crypto') {
@@ -168,14 +154,6 @@ const requestWithdrawal = async (req, res) => {
                      transaction_reference = $2
                  WHERE id = $3`,
                 [processResult.transaction_hash || null, processResult.reference || null, withdrawalId]
-            );
-            
-            // Deduct from member balance
-            await query(
-                `UPDATE member_balances 
-                 SET balance_usdt = balance_usdt - $1, updated_at = NOW()
-                 WHERE member_id = $2`,
-                [amount_usdt, memberId]
             );
             
             res.json({
@@ -207,7 +185,6 @@ const requestWithdrawal = async (req, res) => {
     }
 };
 
-// Get withdrawal methods available
 const getWithdrawalMethods = async (req, res) => {
     res.json({
         success: true,
@@ -252,7 +229,6 @@ const getWithdrawalMethods = async (req, res) => {
     });
 };
 
-// Get withdrawal history
 const getWithdrawalHistory = async (req, res) => {
     try {
         const { chamaId } = req.params;
