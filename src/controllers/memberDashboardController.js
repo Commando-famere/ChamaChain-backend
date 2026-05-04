@@ -5,7 +5,6 @@ async function getMemberDashboard(req, res) {
         const userId = req.user.id;
         const { chamaId } = req.params;
 
-        // Get member details including the UUID
         const memberResult = await query(
             `SELECT gm.id as member_id, gm.chama_member_id, gm.role, gm.joined_at, gm.voting_rights,
                     u.full_name, u.phone, u.email, u.global_user_id, u.profile_picture_url,
@@ -72,10 +71,11 @@ async function getMemberDashboard(req, res) {
         const chamaSettings = await query(`SELECT settings FROM chamas WHERE id = $1`, [chamaId]);
         const settings = chamaSettings.rows[0]?.settings || {};
 
+        // Return response with member_id at the top level
         res.json({
             success: true,
             data: {
-                member_id: member.member_id,  // Added UUID for attendance
+                member_id: member.member_id,  // This is the UUID needed for attendance
                 profile: {
                     chama_member_id: member.chama_member_id,
                     role: member.role,
