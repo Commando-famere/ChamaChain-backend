@@ -32,3 +32,4 @@ module.exports = router;
 
 // Invite routes
 router.use('/invites', require('./v1/inviteRoutes'));
+router.use('/member-info', require('./v1/memberInfoRoutes'));
