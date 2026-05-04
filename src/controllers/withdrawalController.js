@@ -2,14 +2,12 @@ const { query } = require('../config/database');
 const { WITHDRAWAL_FEE_KES, BYBIT_NETWORK_FEE_USDT } = require('../config/constants');
 const { sendToBybit } = require('../services/bybitService');
 
-// Request withdrawal
 const requestWithdrawal = async (req, res) => {
     try {
         const { chamaId } = req.params;
         const userId = req.user.id;
         const { amount_kes, destination_wallet } = req.body;
         
-        // Minimum withdrawal is KES 200
         if (amount_kes < 200) {
             return res.status(400).json({
                 success: false,
@@ -17,7 +15,6 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Get member
         const memberResult = await query(
             `SELECT id FROM group_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
             [chamaId, userId]
@@ -29,16 +26,12 @@ const requestWithdrawal = async (req, res) => {
         
         const memberId = memberResult.rows[0].id;
         
-        // Convert KES to USDT (approximate rate)
         const usdRate = 130;
         const amount_usdt = amount_kes / usdRate;
-        
-        // Calculate fees
         const platformFeeKes = WITHDRAWAL_FEE_KES;
         const amountAfterPlatformFee = amount_kes - platformFeeKes;
         const amountToSendUsdt = amountAfterPlatformFee / usdRate;
         
-        // Check balance in USDT
         const balanceResult = await query(
             `SELECT COALESCE(SUM(CASE WHEN transaction_type = 'deposit' THEN amount_usdt ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount_usdt ELSE 0 END), 0) as balance
@@ -56,18 +49,17 @@ const requestWithdrawal = async (req, res) => {
             });
         }
         
-        // Create withdrawal request
         const withdrawalResult = await query(
             `INSERT INTO transaction_ledger 
              (chama_id, member_id, transaction_type, amount_usdt, amount_kes, withdrawal_fee_kes, status, destination_wallet)
-             VALUES ($1, $2, 'withdrawal', $3, $4, $5, 'pending', $6)
+             VALUES ($1, $2, 'withdrawal', $3, $4, $5, 'processing', $6)
              RETURNING id`,
             [chamaId, memberId, amount_usdt, amount_kes, platformFeeKes, destination_wallet]
         );
         
         const withdrawalId = withdrawalResult.rows[0].id;
         
-        // Process withdrawal through Bybit
+        // REAL Bybit withdrawal
         const bybitResult = await sendToBybit({
             amount: amountToSendUsdt,
             currency: 'USDT',
@@ -86,6 +78,14 @@ const requestWithdrawal = async (req, res) => {
                 [bybitResult.tx_hash, BYBIT_NETWORK_FEE_USDT, withdrawalId]
             );
             
+            // Deduct from member balance
+            await query(
+                `UPDATE member_balances 
+                 SET balance_usdt = balance_usdt - $1, updated_at = NOW()
+                 WHERE member_id = $2`,
+                [amount_usdt, memberId]
+            );
+            
             res.json({
                 success: true,
                 message: `Withdrawal of KES ${amount_kes} processed successfully`,
@@ -96,6 +96,7 @@ const requestWithdrawal = async (req, res) => {
                     network_fee_usdt: BYBIT_NETWORK_FEE_USDT,
                     amount_sent_usdt: amountToSendUsdt,
                     transaction_hash: bybitResult.tx_hash,
+                    withdrawal_id_bybit: bybitResult.withdrawal_id,
                     user_receives: `~KES ${(amountToSendUsdt * usdRate).toFixed(0)}`
                 }
             });
@@ -104,7 +105,7 @@ const requestWithdrawal = async (req, res) => {
             
             res.status(500).json({
                 success: false,
-                message: 'Withdrawal processing failed',
+                message: 'Withdrawal failed',
                 error: bybitResult.error
             });
         }
@@ -115,35 +116,4 @@ const requestWithdrawal = async (req, res) => {
     }
 };
 
-// Get withdrawal history
-const getWithdrawalHistory = async (req, res) => {
-    try {
-        const { chamaId } = req.params;
-        const userId = req.user.id;
-        
-        const memberResult = await query(
-            `SELECT id FROM group_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
-            [chamaId, userId]
-        );
-        
-        if (memberResult.rows.length === 0) {
-            return res.status(403).json({ success: false, message: 'Not a member' });
-        }
-        
-        const withdrawals = await query(
-            `SELECT id, amount_usdt, amount_kes, withdrawal_fee_kes, network_fee_usdt, bybit_tx_hash, status, created_at, approved_at
-             FROM transaction_ledger
-             WHERE member_id = $1 AND transaction_type = 'withdrawal'
-             ORDER BY created_at DESC`,
-            [memberResult.rows[0].id]
-        );
-        
-        res.json({ success: true, data: withdrawals.rows });
-        
-    } catch (error) {
-        console.error('Get withdrawal history error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-module.exports = { requestWithdrawal, getWithdrawalHistory };
+module.exports = { requestWithdrawal };
