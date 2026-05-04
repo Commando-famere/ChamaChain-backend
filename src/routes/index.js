@@ -34,3 +34,4 @@ module.exports = router;
 router.use('/invites', require('./v1/inviteRoutes'));
 router.use('/member-info', require('./v1/memberInfoRoutes'));
 router.use('/withdrawals', require('./v1/withdrawalRoutes'));
+router.use('/finance', require('./v1/financialRoutes'));
