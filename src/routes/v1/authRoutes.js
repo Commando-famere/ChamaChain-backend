@@ -56,7 +56,7 @@ router.post('/register', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, phone: user.phone, full_name: user.full_name },
             JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: "5m" }
         );
 
         res.json({ success: true, data: { user, token } });
@@ -91,7 +91,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, phone: user.phone, full_name: user.full_name },
             JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: "5m" }
         );
 
         res.json({
@@ -114,3 +114,52 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+
+// Heartbeat - keeps session alive
+router.post('/heartbeat', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+        
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Update session expiry
+        const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex');
+        
+        await query(
+            `UPDATE user_sessions 
+             SET last_heartbeat = NOW(), expires_at = NOW() + INTERVAL '5 minutes'
+             WHERE token_hash = $1 AND is_active = true`,
+            [tokenHash]
+        );
+        
+        res.json({ success: true, message: 'Session extended', expires_in: 300 });
+    } catch (error) {
+        console.error('Heartbeat error:', error);
+        res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+});
+
+// Close session (when app/tab closes)
+router.post('/close', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex');
+            
+            await query(
+                `UPDATE user_sessions SET is_active = false, expires_at = NOW()
+                 WHERE token_hash = $1`,
+                [tokenHash]
+            );
+        }
+        res.json({ success: true, message: 'Session closed' });
+    } catch (error) {
+        console.error('Close session error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
