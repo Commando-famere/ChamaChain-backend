@@ -15,7 +15,6 @@ const setAdminPin = async (req, res) => {
             });
         }
         
-        // Get member ID and role
         const memberResult = await query(
             `SELECT id, role FROM group_members 
              WHERE chama_id = $1 AND user_id = $2 AND is_active = true
@@ -54,43 +53,48 @@ const setAdminPin = async (req, res) => {
 
 // Verify Admin PIN
 const verifyAdminPin = async (memberId, pin) => {
-    const result = await query(
-        `SELECT pin_hash, failed_attempts, locked_until FROM admin_pins WHERE member_id = $1`,
-        [memberId]
-    );
-    
-    if (result.rows.length === 0) {
-        return { success: false, message: 'PIN not set for this admin' };
-    }
-    
-    const admin = result.rows[0];
-    
-    if (admin.locked_until && new Date(admin.locked_until) > new Date()) {
-        return { success: false, message: 'PIN locked. Try again later.' };
-    }
-    
-    const isValid = await bcrypt.compare(pin, admin.pin_hash);
-    
-    if (!isValid) {
-        const newAttempts = (admin.failed_attempts || 0) + 1;
-        let lockedUntil = null;
-        
-        if (newAttempts >= 5) {
-            lockedUntil = new Date();
-            lockedUntil.setMinutes(lockedUntil.getMinutes() + 30);
-        }
-        
-        await query(
-            `UPDATE admin_pins SET failed_attempts = $1, locked_until = $2 WHERE member_id = $3`,
-            [newAttempts, lockedUntil, memberId]
+    try {
+        const result = await query(
+            `SELECT pin_hash, failed_attempts, locked_until FROM admin_pins WHERE member_id = $1`,
+            [memberId]
         );
         
-        return { success: false, message: `Invalid PIN. ${5 - newAttempts} attempts remaining.` };
+        if (result.rows.length === 0) {
+            return { success: false, message: 'PIN not set for this admin' };
+        }
+        
+        const admin = result.rows[0];
+        
+        if (admin.locked_until && new Date(admin.locked_until) > new Date()) {
+            return { success: false, message: 'PIN locked. Try again later.' };
+        }
+        
+        const isValid = await bcrypt.compare(pin, admin.pin_hash);
+        
+        if (!isValid) {
+            const newAttempts = (admin.failed_attempts || 0) + 1;
+            let lockedUntil = null;
+            
+            if (newAttempts >= 5) {
+                lockedUntil = new Date();
+                lockedUntil.setMinutes(lockedUntil.getMinutes() + 30);
+            }
+            
+            await query(
+                `UPDATE admin_pins SET failed_attempts = $1, locked_until = $2 WHERE member_id = $3`,
+                [newAttempts, lockedUntil, memberId]
+            );
+            
+            return { success: false, message: `Invalid PIN. ${5 - newAttempts} attempts remaining.` };
+        }
+        
+        await query(`UPDATE admin_pins SET failed_attempts = 0, locked_until = NULL WHERE member_id = $1`, [memberId]);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Verify PIN error:', error);
+        return { success: false, message: error.message };
     }
-    
-    await query(`UPDATE admin_pins SET failed_attempts = 0, locked_until = NULL WHERE member_id = $1`, [memberId]);
-    
-    return { success: true };
 };
 
 module.exports = { setAdminPin, verifyAdminPin };
