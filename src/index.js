@@ -8,15 +8,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Binary parser middleware (MUST come before other middleware)
+// Binary parser middleware
 app.use((req, res, next) => {
-    // Skip GET requests
     if (req.method === 'GET') {
         return next();
     }
     
-    const contentType = req.headers['content-type'];
-    const isBinary = contentType === 'application/octet-stream';
+    const isBinary = req.headers['content-type'] === 'application/octet-stream';
     
     if (isBinary) {
         let chunks = [];
@@ -27,15 +25,12 @@ app.use((req, res, next) => {
                 const jsonString = buffer.toString('utf8');
                 req.body = JSON.parse(jsonString);
                 req.isBinary = true;
-                console.log('📦 Binary request parsed successfully');
                 next();
             } catch (err) {
-                console.error('❌ Binary parse error:', err.message);
                 res.status(400).json({ success: false, message: 'Invalid binary data' });
             }
         });
     } else {
-        // For non-binary, use express.json later
         next();
     }
 });
@@ -46,6 +41,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Encryption middleware
+const { encryptResponse } = require('./middleware/encryption');
+app.use(encryptResponse);
+
+// Simple request logging
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+});
+
 // Routes
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -55,13 +60,12 @@ app.get('/', (req, res) => {
     res.json({ message: 'ChamaChain API', status: 'running' });
 });
 
+// API routes
 app.use('/api/v1', require('./routes'));
 
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🔐 Binary mode: ENABLED`);
+    console.log(`🔐 Encryption: ENABLED`);
+    console.log(`📋 Health: http://localhost:${PORT}/health`);
 });
-
-// Encryption middleware (add after CORS)
-const { encryptResponse } = require('./middleware/encryption');
-app.use(encryptResponse);
