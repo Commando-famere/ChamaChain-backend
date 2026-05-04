@@ -61,3 +61,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔐 Binary mode: ENABLED`);
 });
+
+// Encryption middleware (add after CORS)
+const { encryptResponse } = require('./middleware/encryption');
+app.use(encryptResponse);
