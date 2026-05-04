@@ -9,7 +9,6 @@ const requestWithdrawal = async (req, res) => {
         const userId = req.user.id;
         const { amount_kes, destination_wallet } = req.body;
         
-        // Validate amount
         if (amount_kes < 100) {
             return res.status(400).json({
                 success: false,
@@ -30,7 +29,7 @@ const requestWithdrawal = async (req, res) => {
         const memberId = memberResult.rows[0].id;
         
         // Convert KES to USDT (approximate rate)
-        const usdRate = 130; // 1 USDT = 130 KES
+        const usdRate = 130;
         const amount_usdt = amount_kes / usdRate;
         
         // Calculate fees
@@ -76,7 +75,6 @@ const requestWithdrawal = async (req, res) => {
         });
         
         if (bybitResult.success) {
-            // Update transaction as completed
             await query(
                 `UPDATE transaction_ledger 
                  SET status = 'approved', 
@@ -101,11 +99,7 @@ const requestWithdrawal = async (req, res) => {
                 }
             });
         } else {
-            // Mark as failed
-            await query(
-                `UPDATE transaction_ledger SET status = 'failed' WHERE id = $1`,
-                [withdrawalId]
-            );
+            await query(`UPDATE transaction_ledger SET status = 'failed' WHERE id = $1`, [withdrawalId]);
             
             res.status(500).json({
                 success: false,
@@ -120,4 +114,35 @@ const requestWithdrawal = async (req, res) => {
     }
 };
 
-module.exports = { requestWithdrawal };
+// Get withdrawal history
+const getWithdrawalHistory = async (req, res) => {
+    try {
+        const { chamaId } = req.params;
+        const userId = req.user.id;
+        
+        const memberResult = await query(
+            `SELECT id FROM group_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
+            [chamaId, userId]
+        );
+        
+        if (memberResult.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Not a member' });
+        }
+        
+        const withdrawals = await query(
+            `SELECT id, amount_usdt, amount_kes, withdrawal_fee_kes, network_fee_usdt, status, created_at, approved_at, bybit_tx_hash
+             FROM transaction_ledger
+             WHERE member_id = $1 AND transaction_type = 'withdrawal'
+             ORDER BY created_at DESC`,
+            [memberResult.rows[0].id]
+        );
+        
+        res.json({ success: true, data: withdrawals.rows });
+        
+    } catch (error) {
+        console.error('Get withdrawal history error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { requestWithdrawal, getWithdrawalHistory };
