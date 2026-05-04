@@ -9,10 +9,11 @@ const requestWithdrawal = async (req, res) => {
         const userId = req.user.id;
         const { amount_kes, destination_wallet } = req.body;
         
-        if (amount_kes < 100) {
+        // Minimum withdrawal is KES 200
+        if (amount_kes < 200) {
             return res.status(400).json({
                 success: false,
-                message: 'Minimum withdrawal is KES 100'
+                message: 'Minimum withdrawal is KES 200'
             });
         }
         
@@ -93,7 +94,7 @@ const requestWithdrawal = async (req, res) => {
                     requested_amount: amount_kes,
                     platform_fee: platformFeeKes,
                     network_fee_usdt: BYBIT_NETWORK_FEE_USDT,
-                    amount_sent: amountToSendUsdt,
+                    amount_sent_usdt: amountToSendUsdt,
                     transaction_hash: bybitResult.tx_hash,
                     user_receives: `~KES ${(amountToSendUsdt * usdRate).toFixed(0)}`
                 }
@@ -130,7 +131,7 @@ const getWithdrawalHistory = async (req, res) => {
         }
         
         const withdrawals = await query(
-            `SELECT id, amount_usdt, amount_kes, withdrawal_fee_kes, network_fee_usdt, status, created_at, approved_at, bybit_tx_hash
+            `SELECT id, amount_usdt, amount_kes, withdrawal_fee_kes, network_fee_usdt, bybit_tx_hash, status, created_at, approved_at
              FROM transaction_ledger
              WHERE member_id = $1 AND transaction_type = 'withdrawal'
              ORDER BY created_at DESC`,
