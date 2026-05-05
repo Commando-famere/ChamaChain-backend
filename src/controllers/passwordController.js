@@ -1,8 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
-const { sendRecoveryCode } = require('../services/emailService');
-const { sendRecoverySMS } = require('../services/smsService');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 // Generate random 6-digit code
 function generateCode() {
@@ -56,25 +55,18 @@ const forgotPassword = async (req, res) => {
             [user.id, token, code, expiresAt]
         );
         
-        // Send code via email if available
-        let emailSent = false;
-        if (user.email) {
-            const emailResult = await sendRecoveryCode(user.email, code, user.full_name);
-            emailSent = emailResult.success;
-        }
+        // Send email with professional template
+        const baseUrl = process.env.BASE_URL || 'https://marvelous-nourishment-production-fef4.up.railway.app';
+        const resetLink = `${baseUrl}/reset-password?token=${token}`;
         
-        // Send code via SMS if available and phone provided
-        let smsSent = false;
-        if (phone && user.phone) {
-            const smsResult = await sendRecoverySMS(user.phone, code);
-            smsSent = smsResult.success;
+        if (user.email) {
+            await sendPasswordResetEmail(user.email, user.full_name, code, resetLink);
         }
         
         res.json({
             success: true,
-            message: 'Recovery code sent',
+            message: 'Recovery code sent to your email',
             data: {
-                delivery_method: emailSent ? 'email' : (smsSent ? 'sms' : 'none'),
                 token: token // For frontend to use in next step
             }
         });
@@ -146,7 +138,7 @@ const resetPassword = async (req, res) => {
     }
 };
 
-// Verify recovery code (optional step)
+// Verify recovery code
 const verifyCode = async (req, res) => {
     try {
         const { token, code } = req.body;

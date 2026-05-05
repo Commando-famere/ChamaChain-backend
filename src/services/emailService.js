@@ -1,7 +1,14 @@
-// Email Service - Uses environment variables
 const nodemailer = require('nodemailer');
+const {
+    getPasswordResetEmail,
+    getWelcomeEmail,
+    getInviteEmail,
+    getMemberApprovalEmail,
+    getWithdrawalApprovalEmail,
+    getWithdrawalCompleteEmail,
+    getContributionReminderEmail
+} = require('../templates/emailTemplates');
 
-// Get SMTP settings from environment variables
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT) || 587;
 const SMTP_USER = process.env.SMTP_USER;
@@ -16,21 +23,17 @@ function getTransporter() {
             host: SMTP_HOST,
             port: SMTP_PORT,
             secure: SMTP_PORT === 465,
-            auth: {
-                user: SMTP_USER,
-                pass: SMTP_PASS
-            }
+            auth: { user: SMTP_USER, pass: SMTP_PASS }
         });
         console.log('📧 Email service configured:', SMTP_HOST);
     }
     return transporter;
 }
 
-async function sendEmail(to, subject, html, text = null) {
+async function sendEmail(to, subject, html) {
     const trans = getTransporter();
     if (!trans) {
-        console.log('⚠️ Email not configured - skipping send');
-        console.log(`Would send to: ${to}, Subject: ${subject}`);
+        console.log('⚠️ Email not configured');
         return { success: false, message: 'Email not configured' };
     }
     
@@ -39,49 +42,57 @@ async function sendEmail(to, subject, html, text = null) {
             from: SMTP_FROM,
             to: to,
             subject: subject,
-            text: text || html.replace(/<[^>]*>/g, ''),
             html: html
         });
         console.log(`📧 Email sent to ${to}: ${info.messageId}`);
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('Email send error:', error);
+        console.error('Email error:', error.message);
         return { success: false, error: error.message };
     }
 }
 
-async function sendRecoveryCode(email, code, userName) {
-    const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-                .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                .code { font-size: 32px; font-weight: bold; color: #2563eb; text-align: center; padding: 20px; letter-spacing: 5px; }
-                .warning { color: #dc2626; font-size: 12px; text-align: center; margin-top: 20px; }
-                .logo { text-align: center; margin-bottom: 20px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="logo">
-                    <h2>🏦 ChamaChain</h2>
-                </div>
-                <h3>Hello ${userName || 'User'},</h3>
-                <p>You requested to reset your password. Use the code below to continue:</p>
-                <div class="code">${code}</div>
-                <p>This code will expire in <strong>15 minutes</strong>.</p>
-                <p>If you didn't request this, please ignore this email.</p>
-                <div class="warning">⚠️ Never share this code with anyone</div>
-                <hr>
-                <p style="font-size: 12px; color: #666;">ChamaChain - Secure Chama Management</p>
-            </div>
-        </body>
-        </html>
-    `;
-    
-    return await sendEmail(email, 'ChamaChain Password Reset', html);
+async function sendPasswordResetEmail(email, userName, recoveryCode, resetLink) {
+    const html = getPasswordResetEmail(userName, recoveryCode, resetLink);
+    return await sendEmail(email, '🔐 ChamaChain - Password Reset Request', html);
 }
 
-module.exports = { sendEmail, sendRecoveryCode };
+async function sendWelcomeEmail(email, userName, loginLink) {
+    const html = getWelcomeEmail(userName, loginLink);
+    return await sendEmail(email, '🎉 Welcome to ChamaChain!', html);
+}
+
+async function sendInviteEmail(email, inviterName, chamaName, role, memberCount, inviteLink) {
+    const html = getInviteEmail(inviterName, chamaName, role, memberCount, inviteLink);
+    return await sendEmail(email, `📨 ${inviterName} invited you to join ${chamaName}`, html);
+}
+
+async function sendMemberApprovalEmail(email, chamaName, memberName, memberPhone, memberEmail, requestedRole, approvalLink) {
+    const html = getMemberApprovalEmail(chamaName, memberName, memberPhone, memberEmail, requestedRole, approvalLink);
+    return await sendEmail(email, `👤 New member request - ${chamaName}`, html);
+}
+
+async function sendWithdrawalApprovalEmail(email, adminName, adminRole, chamaName, memberName, amount, method, destination, approvalsCount, approvalLink) {
+    const html = getWithdrawalApprovalEmail(adminName, adminRole, chamaName, memberName, amount, method, destination, approvalsCount, approvalLink);
+    return await sendEmail(email, `💰 Withdrawal request pending - ${chamaName}`, html);
+}
+
+async function sendWithdrawalCompleteEmail(email, memberName, amount, method, destination, fee, transactionId, date) {
+    const html = getWithdrawalCompleteEmail(memberName, amount, method, destination, fee, transactionId, date);
+    return await sendEmail(email, `✅ Withdrawal complete - KES ${amount}`, html);
+}
+
+async function sendContributionReminderEmail(email, memberName, chamaName, amount, dueDate, frequency, lateFee, paymentLink) {
+    const html = getContributionReminderEmail(memberName, chamaName, amount, dueDate, frequency, lateFee, paymentLink);
+    return await sendEmail(email, `📅 Contribution reminder - ${chamaName}`, html);
+}
+
+module.exports = {
+    sendPasswordResetEmail,
+    sendWelcomeEmail,
+    sendInviteEmail,
+    sendMemberApprovalEmail,
+    sendWithdrawalApprovalEmail,
+    sendWithdrawalCompleteEmail,
+    sendContributionReminderEmail
+};
