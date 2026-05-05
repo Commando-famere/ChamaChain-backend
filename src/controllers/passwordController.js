@@ -43,6 +43,14 @@ const forgotPassword = async (req, res) => {
             });
         }
         
+        // Check if user has email
+        if (!user.email) {
+            return res.status(400).json({
+                success: false,
+                message: 'No email associated with this account. Please contact support.'
+            });
+        }
+        
         const code = generateCode();
         const token = generateToken();
         const expiresAt = new Date();
@@ -59,17 +67,29 @@ const forgotPassword = async (req, res) => {
         const baseUrl = process.env.BASE_URL || 'https://marvelous-nourishment-production-fef4.up.railway.app';
         const resetLink = `${baseUrl}/reset-password?token=${token}`;
         
-        if (user.email) {
-            await sendPasswordResetEmail(user.email, user.full_name, code, resetLink);
-        }
+        console.log(`📧 Attempting to send password reset email to: ${user.email}`);
+        console.log(`   Code: ${code}`);
+        console.log(`   Reset Link: ${resetLink}`);
         
-        res.json({
-            success: true,
-            message: 'Recovery code sent to your email',
-            data: {
-                token: token // For frontend to use in next step
-            }
-        });
+        const emailResult = await sendPasswordResetEmail(user.email, user.full_name, code, resetLink);
+        
+        if (emailResult.success) {
+            console.log(`✅ Password reset email sent to ${user.email}`);
+            res.json({
+                success: true,
+                message: 'Recovery code sent to your email',
+                data: {
+                    token: token
+                }
+            });
+        } else {
+            console.error(`❌ Failed to send email: ${emailResult.error}`);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send recovery email. Please try again later.',
+                error: emailResult.error
+            });
+        }
         
     } catch (error) {
         console.error('Forgot password error:', error);
