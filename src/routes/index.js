@@ -36,3 +36,4 @@ router.use('/member-info', require('./v1/memberInfoRoutes'));
 router.use('/withdrawals', require('./v1/withdrawalRoutes'));
 router.use('/finance', require('./v1/financialRoutes'));
 router.use('/admin', require('./v1/adminRoutes'));
+router.use('/password', require('./v1/passwordRoutes'));
