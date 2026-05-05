@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT) || 587;
+const SMTP_PORT = parseInt(process.env.SMTP_PORT) || 465;  // Use 465 instead of 587
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
@@ -13,11 +13,12 @@ function getTransporter() {
         console.log('📧 Creating SMTP transporter...');
         console.log(`   Host: ${SMTP_HOST}`);
         console.log(`   Port: ${SMTP_PORT}`);
+        console.log(`   Secure: ${SMTP_PORT === 465}`);
         
         transporter = nodemailer.createTransport({
             host: SMTP_HOST,
             port: SMTP_PORT,
-            secure: false,
+            secure: SMTP_PORT === 465,  // true for 465, false for 587
             auth: {
                 user: SMTP_USER,
                 pass: SMTP_PASS
@@ -26,17 +27,21 @@ function getTransporter() {
                 rejectUnauthorized: false,
                 ciphers: 'SSLv3'
             },
-            socketTimeout: 30000,
             connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 30000,
             family: 4  // Force IPv4
         });
         
-        // Verify connection
+        // Don't wait for verify, just return transporter
+        console.log('✅ SMTP transporter created');
+        
+        // Test connection asynchronously
         transporter.verify((error, success) => {
             if (error) {
                 console.error('❌ SMTP verification failed:', error.message);
             } else {
-                console.log('✅ SMTP transporter ready');
+                console.log('✅ SMTP verification successful');
             }
         });
     }
@@ -44,7 +49,7 @@ function getTransporter() {
 }
 
 async function sendEmail(to, subject, html) {
-    console.log(`📧 sendEmail called: to=${to}`);
+    console.log(`📧 Sending email to: ${to}`);
     
     const trans = getTransporter();
     if (!trans) {
@@ -68,7 +73,7 @@ async function sendEmail(to, subject, html) {
 }
 
 async function sendPasswordResetEmail(email, userName, recoveryCode, resetLink) {
-    console.log(`📧 Sending password reset to: ${email}`);
+    console.log(`📧 Sending password reset to: ${email}, code: ${recoveryCode}`);
     
     const { getPasswordResetEmail } = require('../templates/emailTemplates');
     const html = getPasswordResetEmail(userName, recoveryCode, resetLink);
