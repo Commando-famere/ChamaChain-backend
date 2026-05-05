@@ -1,13 +1,9 @@
-// Custom Binary Encryption Service
-// Nobody can decrypt without the secret key
-
 const crypto = require('crypto');
 
-// Secret key - keep this VERY secure
+// Fixed secret key - must be same in frontend and backend
 const SECRET_KEY = process.env.ENCRYPTION_KEY || 'ChaMaChAiN-SeCrEt-KeY-2026!@#$%';
 const IV_LENGTH = 16;
 
-// Encrypt data using AES-256-CBC
 function encrypt(data) {
     try {
         const iv = crypto.randomBytes(IV_LENGTH);
@@ -19,23 +15,20 @@ function encrypt(data) {
         // Combine IV + encrypted data
         const result = iv.toString('hex') + ':' + encrypted;
         
-        // Convert to binary format
-        return Buffer.from(result, 'utf8');
+        // Convert to base64 (no key sent)
+        return Buffer.from(result, 'utf8').toString('base64');
     } catch (error) {
         console.error('Encryption error:', error);
         return null;
     }
 }
 
-// Decrypt data (for backend internal use)
-function decrypt(encryptedBuffer) {
+function decrypt(encryptedBase64) {
     try {
-        const encryptedStr = encryptedBuffer.toString('utf8');
+        const encryptedStr = Buffer.from(encryptedBase64, 'base64').toString('utf8');
         const parts = encryptedStr.split(':');
         
-        if (parts.length !== 2) {
-            return null;
-        }
+        if (parts.length !== 2) return null;
         
         const iv = Buffer.from(parts[0], 'hex');
         const encryptedText = parts[1];
@@ -51,35 +44,4 @@ function decrypt(encryptedBuffer) {
     }
 }
 
-// Generate a unique session key for each request (additional security)
-function generateSessionKey() {
-    return crypto.randomBytes(32).toString('hex');
-}
-
-// XOR cipher for extra layer (binary transformation)
-function xorTransform(data, key) {
-    const buffer = Buffer.from(data, 'utf8');
-    const keyBuffer = Buffer.from(key);
-    const result = Buffer.alloc(buffer.length);
-    
-    for (let i = 0; i < buffer.length; i++) {
-        result[i] = buffer[i] ^ keyBuffer[i % keyBuffer.length];
-    }
-    
-    return result.toString('binary');
-}
-
-// Reverse XOR transformation
-function xorReverse(data, key) {
-    const buffer = Buffer.from(data, 'binary');
-    const keyBuffer = Buffer.from(key);
-    const result = Buffer.alloc(buffer.length);
-    
-    for (let i = 0; i < buffer.length; i++) {
-        result[i] = buffer[i] ^ keyBuffer[i % keyBuffer.length];
-    }
-    
-    return result.toString('utf8');
-}
-
-module.exports = { encrypt, decrypt, generateSessionKey, xorTransform, xorReverse };
+module.exports = { encrypt, decrypt };
