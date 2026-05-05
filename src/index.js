@@ -1,12 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Serve static files from public directory
+app.use('/images', express.static(path.join(__dirname, '../public/images')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Binary parser middleware
 app.use((req, res, next) => {
@@ -67,5 +72,6 @@ app.use('/api/v1', require('./routes'));
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔐 Encryption: ENABLED`);
+    console.log(`🖼️ Static files: /images, /uploads`);
     console.log(`📋 Health: http://localhost:${PORT}/health`);
 });
