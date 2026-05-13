@@ -1,79 +1,85 @@
-// When approving a transaction, set approved_at
-async function approveTransaction(req, res) {
-    try {
-        const { transactionId } = req.params;
-        
-        await query(
-            `UPDATE transaction_ledger 
-             SET status = 'approved', approved_at = NOW()
-             WHERE id = $1`,
-            [transactionId]
-        );
-        
-        res.json({ success: true, message: 'Transaction approved' });
-    } catch (error) {
-        console.error('Approve error:', error);
-        res.status(500).json({ success: false, message: 'Failed to approve' });
-    }
-}
+const { query } = require('../config/database');
+const { recordActivity } = require('../middleware/inactivityCheck');
 
-// Request withdrawal with fee
-const requestWithdrawal = async (req, res) => {
+// Record deposit
+const recordDeposit = async (req, res) => {
     try {
         const { chamaId } = req.params;
         const userId = req.user.id;
-        const { amount, destination } = req.body;
-        const { WITHDRAWAL_FEE_KES } = require('../config/constants');
+        const { member_id, amount, payment_method, transaction_reference } = req.body;
         
-        // Get member
-        const memberResult = await query(
-            `SELECT id FROM group_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
+        const roleCheck = await query(
+            `SELECT id, role FROM group_members 
+             WHERE chama_id = $1 AND user_id = $2 AND is_active = true
+             AND role IN ('chairperson', 'treasurer')`,
             [chamaId, userId]
         );
         
-        if (memberResult.rows.length === 0) {
-            return res.status(403).json({ success: false, message: 'Not a member' });
+        if (roleCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Only chairperson or treasurer can record deposits' });
         }
         
-        const memberId = memberResult.rows[0].id;
+        const recordedBy = roleCheck.rows[0].id;
         
-        // Check balance
-        const balanceResult = await query(
-            `SELECT COALESCE(SUM(CASE WHEN transaction_type = 'deposit' THEN amount_usdt ELSE 0 END), 0) -
-                    COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount_usdt ELSE 0 END), 0) as balance
-             FROM transaction_ledger
-             WHERE member_id = $1 AND status = 'approved'`,
-            [memberId]
-        );
-        
-        const balance = parseFloat(balanceResult.rows[0].balance);
-        const totalRequired = amount + WITHDRAWAL_FEE_KES;
-        
-        if (balance < totalRequired) {
-            return res.status(400).json({
-                success: false,
-                message: `Insufficient balance. Need ${totalRequired} USDT (${amount} withdrawal + ${WITHDRAWAL_FEE_KES} fee)`
-            });
-        }
-        
-        // Create withdrawal request with fee
         const result = await query(
-            `INSERT INTO transaction_ledger (chama_id, member_id, transaction_type, amount_usdt, withdrawal_fee_kes, status, destination_wallet)
-             VALUES ($1, $2, 'withdrawal', $3, $4, 'pending', $5)
-             RETURNING *`,
-            [chamaId, memberId, amount, WITHDRAWAL_FEE_KES, destination]
+            `INSERT INTO transaction_ledger (chama_id, member_id, transaction_type, amount_usdt, status, recorded_by, payment_method, transaction_reference)
+             VALUES ($1, $2, 'deposit', $3, 'pending', $4, $5, $6)
+             RETURNING id, amount_usdt, status, created_at`,
+            [chamaId, member_id, amount, recordedBy, payment_method, transaction_reference]
         );
         
-        res.json({
+        // Record activity
+        await recordActivity(chamaId, 'deposit_recorded', userId);
+        
+        res.status(201).json({
             success: true,
-            message: `Withdrawal request submitted. Fee: KES ${WITHDRAWAL_FEE_KES}`,
+            message: 'Deposit recorded, pending approval',
             data: result.rows[0]
         });
         
     } catch (error) {
-        console.error('Request withdrawal error:', error);
+        console.error('Deposit error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
-module.exports = { requestWithdrawal };
+// Approve deposit
+const approveDeposit = async (req, res) => {
+    try {
+        const { chamaId, depositId } = req.params;
+        const userId = req.user.id;
+        
+        const chairCheck = await query(
+            `SELECT id FROM group_members 
+             WHERE chama_id = $1 AND user_id = $2 AND role = 'chairperson' AND is_active = true`,
+            [chamaId, userId]
+        );
+        
+        if (chairCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Only chairperson can approve deposits' });
+        }
+        
+        const result = await query(
+            `UPDATE transaction_ledger 
+             SET status = 'approved', approved_by = $1, approved_at = NOW()
+             WHERE id = $2 AND chama_id = $3 AND status = 'pending'
+             RETURNING *`,
+            [chairCheck.rows[0].id, depositId, chamaId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Deposit not found or already processed' });
+        }
+        
+        // Record activity
+        await recordActivity(chamaId, 'deposit_approved', userId);
+        
+        res.json({ success: true, message: 'Deposit approved', data: result.rows[0] });
+        
+    } catch (error) {
+        console.error('Approve deposit error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { recordDeposit, approveDeposit };

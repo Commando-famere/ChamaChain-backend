@@ -37,3 +37,5 @@ router.use('/withdrawals', require('./v1/withdrawalRoutes'));
 router.use('/finance', require('./v1/financialRoutes'));
 router.use('/admin', require('./v1/adminRoutes'));
 router.use('/password', require('./v1/passwordRoutes'));
+router.use('/auth', require('./v1/auth/socialRoutes'));
+router.use('/reactivation', require('./v1/reactivationRoutes'));

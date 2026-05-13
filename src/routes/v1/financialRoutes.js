@@ -121,3 +121,9 @@ router.get('/chamas/:chamaId/transactions', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+const { requireActiveChama } = require('../../middleware/inactivityCheck');
+
+// Add to deposit routes
+router.post('/chamas/:chamaId/deposits', verifyToken, requireActiveChama, recordDeposit);
+router.post('/chamas/:chamaId/withdrawals', verifyToken, requireActiveChama, requestWithdrawal);
+router.post('/chamas/:chamaId/loans', verifyToken, requireActiveChama, requestLoan);

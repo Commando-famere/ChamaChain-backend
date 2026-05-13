@@ -388,3 +388,10 @@ module.exports = {
     getWithdrawalMethods,
     getWithdrawalHistory
 };
+const { recordActivity } = require('../middleware/inactivityCheck');
+
+// Add to requestWithdrawal function
+await recordActivity(chamaId, 'withdrawal_requested', userId);
+
+// Add to approveWithdrawal function
+await recordActivity(chamaId, 'withdrawal_approved', userId);

@@ -109,3 +109,7 @@ router.post('/chamas/:chamaId/meetings/:meetingId/attendance', verifyToken, asyn
 });
 
 module.exports = router;
+const { requireActiveChama } = require('../../middleware/inactivityCheck');
+
+router.post('/chamas/:chamaId/meetings', verifyToken, requireActiveChama, createMeeting);
+router.post('/chamas/:chamaId/meetings/:meetingId/attendance', verifyToken, requireActiveChama, recordAttendance);

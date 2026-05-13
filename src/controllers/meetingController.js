@@ -170,3 +170,10 @@ const recordAttendance = async (req, res) => {
 };
 
 module.exports = { upload, createMeeting, getMeetings, getMeeting, recordAttendance };
+const { recordActivity } = require('../middleware/inactivityCheck');
+
+// Add to createMeeting function
+await recordActivity(chamaId, 'meeting_created', userId);
+
+// Add to recordAttendance function
+await recordActivity(chamaId, 'attendance_recorded', userId);

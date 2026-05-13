@@ -287,3 +287,10 @@ async function rejectMember(req, res) {
 }
 
 module.exports = { generateInviteLink, acceptInvite, rejectInvite, approveMember, rejectMember };
+const { recordActivity } = require('../middleware/inactivityCheck');
+
+// Add to generateInvite function
+await recordActivity(chamaId, 'invite_generated', userId);
+
+// Add to approveMember function
+await recordActivity(chamaId, 'member_approved', userId);

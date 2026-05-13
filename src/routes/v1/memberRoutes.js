@@ -6,3 +6,6 @@ router.get('/:chamaId', (req, res) => {
 });
 
 module.exports = router;
+const { requireActiveChama } = require('../../middleware/inactivityCheck');
+
+router.post('/chamas/:chamaId/invite', verifyToken, requireActiveChama, generateInvite);

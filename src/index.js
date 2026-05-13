@@ -48,7 +48,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Encryption middleware
 const { encryptResponse } = require('./middleware/encryption');
+const { checkInactiveChamas } = require('./services/inactivityChecker');
 app.use(encryptResponse);
+// Run initial inactivity check
+checkInactiveChamas().catch(console.error);
 
 // Simple request logging
 app.use((req, res, next) => {
