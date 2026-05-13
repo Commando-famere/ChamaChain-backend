@@ -4,7 +4,7 @@ const { processWithdrawal } = require('../services/withdrawalService');
 const bcrypt = require('bcryptjs');
 
 // Helper: Verify admin PIN
-const verifyAdminPin = async (memberId, pin) => {
+async function verifyAdminPin(memberId, pin) {
     const result = await query(
         `SELECT pin_hash, failed_attempts, locked_until FROM admin_pins WHERE member_id = $1`,
         [memberId]
@@ -42,7 +42,7 @@ const verifyAdminPin = async (memberId, pin) => {
     await query(`UPDATE admin_pins SET failed_attempts = 0, locked_until = NULL WHERE member_id = $1`, [memberId]);
     
     return { success: true };
-};
+}
 
 // Request withdrawal (member)
 const requestWithdrawal = async (req, res) => {
@@ -117,12 +117,7 @@ const requestWithdrawal = async (req, res) => {
         res.json({
             success: true,
             message: 'Withdrawal request submitted. Waiting for admin approval.',
-            data: {
-                withdrawal_id: withdrawalId,
-                requested_amount: amount_kes,
-                requires_approval: true,
-                status: 'pending_approval'
-            }
+            data: { withdrawal_id: withdrawalId, requested_amount: amount_kes, requires_approval: true, status: 'pending_approval' }
         });
         
     } catch (error) {
@@ -223,10 +218,7 @@ const approveWithdrawal = async (req, res) => {
         const allApproved = requiredRoles.every(role => rolesSigned.includes(role));
         
         if (allApproved) {
-            await query(
-                `UPDATE withdrawal_approvals SET status = 'approved', processed_at = NOW() WHERE id = $1`,
-                [approvalId]
-            );
+            await query(`UPDATE withdrawal_approvals SET status = 'approved', processed_at = NOW() WHERE id = $1`, [approvalId]);
             
             const withdrawal = await query(
                 `SELECT wa.*, tl.id as transaction_id
@@ -273,13 +265,7 @@ const approveWithdrawal = async (req, res) => {
                 res.json({
                     success: true,
                     message: 'Withdrawal fully approved and processed!',
-                    data: {
-                        withdrawal_id: wd.transaction_id,
-                        requested_amount: wd.amount_kes,
-                        platform_fee: WITHDRAWAL_FEE_KES,
-                        status: 'approved',
-                        transaction_hash: processResult.transaction_hash
-                    }
+                    data: { withdrawal_id: wd.transaction_id, requested_amount: wd.amount_kes, platform_fee: WITHDRAWAL_FEE_KES, status: 'approved', transaction_hash: processResult.transaction_hash }
                 });
             } else {
                 await query(`UPDATE transaction_ledger SET status = 'failed' WHERE id = $1`, [wd.transaction_id]);
@@ -289,11 +275,7 @@ const approveWithdrawal = async (req, res) => {
             res.json({
                 success: true,
                 message: `Approval recorded. Waiting for additional approvals. (${signatures.rows.length}/3)`,
-                data: {
-                    approvals_received: signatures.rows.length,
-                    approvals_needed: 3,
-                    remaining: requiredRoles.filter(r => !rolesSigned.includes(r))
-                }
+                data: { approvals_received: signatures.rows.length, approvals_needed: 3, remaining: requiredRoles.filter(r => !rolesSigned.includes(r)) }
             });
         }
         
@@ -388,10 +370,3 @@ module.exports = {
     getWithdrawalMethods,
     getWithdrawalHistory
 };
-const { recordActivity } = require('../middleware/inactivityCheck');
-
-// Add to requestWithdrawal function
-await recordActivity(chamaId, 'withdrawal_requested', userId);
-
-// Add to approveWithdrawal function
-await recordActivity(chamaId, 'withdrawal_approved', userId);

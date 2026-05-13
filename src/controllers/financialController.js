@@ -28,7 +28,6 @@ const recordDeposit = async (req, res) => {
             [chamaId, member_id, amount, recordedBy, payment_method, transaction_reference]
         );
         
-        // Record activity
         await recordActivity(chamaId, 'deposit_recorded', userId);
         
         res.status(201).json({
@@ -71,7 +70,6 @@ const approveDeposit = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Deposit not found or already processed' });
         }
         
-        // Record activity
         await recordActivity(chamaId, 'deposit_approved', userId);
         
         res.json({ success: true, message: 'Deposit approved', data: result.rows[0] });
@@ -82,4 +80,83 @@ const approveDeposit = async (req, res) => {
     }
 };
 
-module.exports = { recordDeposit, approveDeposit };
+// Get chama balance
+const getChamaBalance = async (req, res) => {
+    try {
+        const { chamaId } = req.params;
+        
+        const balance = await query(
+            `SELECT 
+                COALESCE(SUM(CASE WHEN transaction_type = 'deposit' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_deposits,
+                COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_withdrawals,
+                COALESCE(SUM(CASE WHEN transaction_type = 'loan_disbursement' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_loans_disbursed,
+                COALESCE(SUM(CASE WHEN transaction_type = 'loan_repayment' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_loan_repayments,
+                COALESCE(SUM(CASE WHEN transaction_type = 'fine' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_fines
+             FROM transaction_ledger
+             WHERE chama_id = $1`,
+            [chamaId]
+        );
+        
+        const currentBalance = balance.rows[0].total_deposits - balance.rows[0].total_withdrawals - balance.rows[0].total_loans_disbursed + balance.rows[0].total_loan_repayments + balance.rows[0].total_fines;
+        
+        res.json({ success: true, data: { ...balance.rows[0], current_balance: currentBalance } });
+        
+    } catch (error) {
+        console.error('Get balance error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get member balance
+const getMemberBalance = async (req, res) => {
+    try {
+        const { chamaId, memberId } = req.params;
+        
+        const balance = await query(
+            `SELECT 
+                COALESCE(SUM(CASE WHEN transaction_type = 'deposit' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_deposits,
+                COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_withdrawals,
+                COALESCE(SUM(CASE WHEN transaction_type = 'loan_disbursement' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_loans_taken,
+                COALESCE(SUM(CASE WHEN transaction_type = 'loan_repayment' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_loan_repayments,
+                COALESCE(SUM(CASE WHEN transaction_type = 'fine' AND status = 'approved' THEN amount_usdt ELSE 0 END), 0) as total_fines
+             FROM transaction_ledger
+             WHERE chama_id = $1 AND member_id = $2 AND status = 'approved'`,
+            [chamaId, memberId]
+        );
+        
+        const currentBalance = balance.rows[0].total_deposits - balance.rows[0].total_withdrawals - balance.rows[0].total_loans_taken + balance.rows[0].total_loan_repayments - balance.rows[0].total_fines;
+        
+        res.json({ success: true, data: { ...balance.rows[0], current_balance: currentBalance } });
+        
+    } catch (error) {
+        console.error('Get member balance error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get transaction history
+const getTransactionHistory = async (req, res) => {
+    try {
+        const { chamaId } = req.params;
+        const { limit = 50, offset = 0 } = req.query;
+        
+        const transactions = await query(
+            `SELECT t.*, u.full_name as member_name
+             FROM transaction_ledger t
+             LEFT JOIN group_members gm ON t.member_id = gm.id
+             LEFT JOIN users u ON gm.user_id = u.id
+             WHERE t.chama_id = $1
+             ORDER BY t.created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [chamaId, parseInt(limit), parseInt(offset)]
+        );
+        
+        res.json({ success: true, data: transactions.rows, pagination: { limit: parseInt(limit), offset: parseInt(offset) } });
+        
+    } catch (error) {
+        console.error('Get transaction history error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { recordDeposit, approveDeposit, getChamaBalance, getMemberBalance, getTransactionHistory };
