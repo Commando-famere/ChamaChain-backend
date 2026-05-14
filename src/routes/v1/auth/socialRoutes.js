@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chamachain-secret';
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BASE_URL}/api/v1/auth/google/callback`,
+    callbackURL: "https://marvelous-nourishment-production-fef4.up.railway.app/api/v1/auth/google/callback",
     passReqToCallback: true
 }, async (req, accessToken, refreshToken, profile, done) => {
     try {
