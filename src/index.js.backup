@@ -3,10 +3,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const dotenv = require('dotenv');
-const session = require('express-session');
-const passport = require('passport');
 
 dotenv.config();
+const session = require('express-session');
+const passport = require('passport');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -48,27 +48,30 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware (ADDED)
+// Session middleware
+const session = require('express-session');
+const passport = require('passport');
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'chamachain-session-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
+  secret: process.env.SESSION_SECRET || 'chamachain-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
 
-// Passport middleware (ADDED)
+// Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
+
+  }
+}));
+
 
 // Encryption middleware
 const { encryptResponse } = require('./middleware/encryption');
 const { checkInactiveChamas } = require('./services/inactivityChecker');
 app.use(encryptResponse);
-
 // Run initial inactivity check
 checkInactiveChamas().catch(console.error);
 
