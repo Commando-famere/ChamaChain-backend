@@ -75,17 +75,6 @@ router.post('/register', async (req, res) => {
 
 // Login
 router.post('/login', async (req, res) => {
-
-// Refresh token
-router.post("/refresh", async (req, res) => {
-    try {
-        const refreshController = require("../../controllers/authController");
-        await refreshController.refreshToken(req, res);
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
     try {
         const { phone, password } = req.body;
 
