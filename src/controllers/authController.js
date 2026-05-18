@@ -63,19 +63,21 @@ const register = async (req, res) => {
         const randomNum = Math.floor(Math.random() * 900000) + 100000;
         const global_user_id = `USR-${randomNum}`;
 
-        // Insert user with all fields
+        // Insert user with only columns that exist
         const result = await query(
             `INSERT INTO users (
                 phone, email, full_name, password_hash, global_user_id,
                 national_id, emergency_name, emergency_phone,
-                date_of_birth, gender, county, town, occupation
+                date_of_birth, gender, county, town, occupation,
+                account_status, created_at
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-             RETURNING id, phone, email, full_name, global_user_id, created_at`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+             RETURNING id, phone, email, full_name, global_user_id`,
             [
                 phone, email || null, full_name, hashedPassword, global_user_id,
                 national_id || null, emergency_name || null, emergency_phone || null,
-                date_of_birth || null, gender || null, county || null, town || null, occupation || null
+                date_of_birth || null, gender || null, county || null, town || null, occupation || null,
+                'active'
             ]
         );
 
@@ -87,13 +89,10 @@ const register = async (req, res) => {
         const ipAddress = getClientIp(req);
         await createSession(user.id, token, userAgent, ipAddress);
 
-        // Return response without password
-        delete user.password_hash;
-        
         sendSuccess(res, { user, token, session_expires_in: 300 }, 'User registered successfully', SUCCESS.CREATED);
     } catch (error) {
         console.error('Register error:', error);
-        sendError(res, 'Registration failed', 500, 500);
+        sendError(res, 'Registration failed: ' + error.message, 500, 500);
     }
 };
 
