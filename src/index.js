@@ -97,3 +97,35 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🖼️ Static files: /images, /uploads`);
     console.log(`📋 Health: http://localhost:${PORT}/health`);
 });
+
+// Auto-run migrations on startup
+(async () => {
+    try {
+        const { query } = require('./config/database');
+        
+        // Create user_sessions table if not exists
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL UNIQUE,
+                session_id TEXT NOT NULL UNIQUE,
+                user_agent TEXT,
+                ip_address TEXT,
+                expires_at TIMESTAMP NOT NULL,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        
+        await query(`
+            CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash);
+            CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+        `);
+        
+        console.log('✅ Session tables ready');
+    } catch (error) {
+        console.error('Migration error:', error.message);
+    }
+})();
