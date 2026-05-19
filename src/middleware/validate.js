@@ -25,7 +25,15 @@ const schemas = {
 
     createChama: Joi.object({
         name: Joi.string().min(3).max(100).required(),
-        plan: Joi.string().valid('free', 'members_only', 'full_money').default('free')
+        plan: Joi.string().valid('free', 'members_only', 'full_money').default('free'),
+        chama_type: Joi.string().valid(
+            'merry_go_round', 
+            'investment', 
+            'welfare', 
+            'savings_lending', 
+            'social', 
+            'digital'
+        ).default('investment')
     }),
 
     deposit: Joi.object({
