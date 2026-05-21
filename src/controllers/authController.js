@@ -124,9 +124,8 @@ const getChamaProfile = async (req, res) => {
             return sendError(res, "User not found", 404, 404);
         }
         const memberResult = await query(
-            `SELECT gm.role, gm.chama_member_id, gm.joined_at, gm.regular_contribution_amount,
-                    c.name as chama_name, c.plan, c.chama_type, c.created_at as chama_created_at,
-                    c.is_active as chama_active
+            `SELECT gm.role, gm.chama_member_id, gm.joined_at,
+                    c.name as chama_name, c.plan, c.chama_type
              FROM group_members gm
              JOIN chamas c ON gm.chama_id = c.id
              WHERE gm.chama_id = $1 AND gm.user_id = $2 AND gm.is_active = true`,
@@ -137,21 +136,7 @@ const getChamaProfile = async (req, res) => {
         }
         const member = memberResult.rows[0];
         const profileData = {
-            user: {
-                id: userResult.rows[0].id,
-                global_user_id: userResult.rows[0].global_user_id,
-                full_name: userResult.rows[0].full_name,
-                phone: userResult.rows[0].phone,
-                email: userResult.rows[0].email,
-                profile_picture_url: userResult.rows[0].profile_picture_url,
-                bio: userResult.rows[0].bio,
-                county: userResult.rows[0].county,
-                town: userResult.rows[0].town,
-                occupation: userResult.rows[0].occupation,
-                emergency_name: userResult.rows[0].emergency_name,
-                emergency_phone: userResult.rows[0].emergency_phone,
-                member_since: userResult.rows[0].created_at
-            },
+            user: userResult.rows[0],
             chama_role: {
                 chama_id: chamaId,
                 chama_name: member.chama_name,
@@ -159,42 +144,14 @@ const getChamaProfile = async (req, res) => {
                 plan: member.plan,
                 role: member.role,
                 chama_member_id: member.chama_member_id,
-                joined_at: member.joined_at,
-                contribution_amount: parseFloat(member.regular_contribution_amount) || 0
+                joined_at: member.joined_at
+            },
+            permissions: {
+                is_chairperson: member.role === "chairperson",
+                can_manage_members: member.role === "chairperson",
+                can_approve_transactions: member.role === "chairperson"
             }
         };
-        const isChairperson = member.role === "chairperson";
-        profileData.permissions = {
-            can_preside_meetings: isChairperson,
-            can_enforce_constitution: isChairperson,
-            can_co_sign_transactions: isChairperson,
-            can_manage_disputes: isChairperson,
-            can_approve_members: isChairperson,
-            can_remove_members: isChairperson,
-            can_upgrade_plan: isChairperson,
-            can_assign_roles: isChairperson
-        };
-        if (isChairperson) {
-            const stats = await query(
-                `SELECT 
-                    (SELECT COUNT(*) FROM meeting_minutes WHERE chama_id = $1) as total_meetings,
-                    (SELECT COUNT(*) FROM group_members WHERE chama_id = $1 AND is_active = true) as total_members,
-                    (SELECT COUNT(*) FROM withdrawal_approvals WHERE chama_id = $1 AND status = "pending") as pending_withdrawals,
-                    (SELECT COUNT(*) FROM loans WHERE chama_id = $1 AND status = "pending") as pending_loans,
-                    (SELECT COUNT(*) FROM member_join_requests WHERE chama_id = $1 AND status = "pending") as pending_members,
-                    (SELECT COUNT(*) FROM chama_disputes WHERE chama_id = $1 AND status = "pending") as active_disputes
-                `,
-                [chamaId]
-            );
-            profileData.statistics = {
-                total_meetings: parseInt(stats.rows[0].total_meetings) || 0,
-                total_members: parseInt(stats.rows[0].total_members) || 0,
-                pending_withdrawals: parseInt(stats.rows[0].pending_withdrawals) || 0,
-                pending_loans: parseInt(stats.rows[0].pending_loans) || 0,
-                pending_members: parseInt(stats.rows[0].pending_members) || 0,
-                active_disputes: parseInt(stats.rows[0].active_disputes) || 0
-            };
-        }
         sendSuccess(res, profileData);
     } catch (error) {
         console.error("Get chama profile error:", error);
