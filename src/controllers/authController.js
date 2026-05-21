@@ -210,3 +210,77 @@ const refreshToken = async (req, res) => {
 };
 
 module.exports = { register, login, getProfile, logout, refreshToken };
+
+// Update user profile
+const updateProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const {
+            full_name, email, bio, date_of_birth, gender,
+            county, town, occupation, profile_picture_url,
+            emergency_name, emergency_phone
+        } = req.body;
+
+        const result = await query(
+            `UPDATE users 
+             SET full_name = COALESCE($1, full_name),
+                 email = COALESCE($2, email),
+                 bio = COALESCE($3, bio),
+                 date_of_birth = COALESCE($4, date_of_birth),
+                 gender = COALESCE($5, gender),
+                 county = COALESCE($6, county),
+                 town = COALESCE($7, town),
+                 occupation = COALESCE($8, occupation),
+                 profile_picture_url = COALESCE($9, profile_picture_url),
+                 emergency_name = COALESCE($10, emergency_name),
+                 emergency_phone = COALESCE($11, emergency_phone),
+                 updated_at = NOW()
+             WHERE id = $12
+             RETURNING id, phone, email, full_name, global_user_id, profile_picture_url,
+                       bio, date_of_birth, gender, county, town, occupation,
+                       emergency_name, emergency_phone, account_status, created_at, updated_at`,
+            [full_name, email, bio, date_of_birth, gender, county, town, occupation, profile_picture_url, emergency_name, emergency_phone, userId]
+        );
+
+        sendSuccess(res, { user: result.rows[0] }, 'Profile updated successfully');
+    } catch (error) {
+        console.error('Update profile error:', error);
+        sendError(res, 'Failed to update profile: ' + error.message, 500, 500);
+    }
+};
+
+// Change password
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { current_password, new_password } = req.body;
+
+        const userResult = await query(
+            `SELECT password_hash FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return sendError(res, 'User not found', 404, 404);
+        }
+
+        const isValid = await comparePassword(current_password, userResult.rows[0].password_hash);
+        if (!isValid) {
+            return sendError(res, 'Current password is incorrect', 401, 401);
+        }
+
+        const hashedPassword = await hashPassword(new_password);
+
+        await query(
+            `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+            [hashedPassword, userId]
+        );
+
+        sendSuccess(res, null, 'Password changed successfully');
+    } catch (error) {
+        console.error('Change password error:', error);
+        sendError(res, 'Failed to change password', 500, 500);
+    }
+};
+
+module.exports = { register, login, getProfile, logout, refreshToken, updateProfile, changePassword };
