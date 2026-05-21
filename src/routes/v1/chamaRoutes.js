@@ -49,3 +49,26 @@ router.get('/:chamaId/penalty-rules', penaltyController.getPenaltyRules);
 const bankController = require('../../controllers/bankController');
 router.post('/:chamaId/bank-accounts', bankController.addBankAccount);
 router.get('/:chamaId/bank-accounts', bankController.getBankAccounts);
+
+// Welfare routes
+const welfareController = require('../../controllers/welfareController');
+router.post('/:chamaId/welfare', welfareController.createWelfareCase);
+router.put('/:chamaId/welfare/:caseId/close', welfareController.closeWelfareCase);
+router.get('/:chamaId/welfare', welfareController.getWelfareCases);
+
+// Dispute routes
+const disputeController = require('../../controllers/disputeController');
+router.post('/:chamaId/disputes', disputeController.createDispute);
+router.put('/:chamaId/disputes/:disputeId/resolve', disputeController.resolveDispute);
+router.get('/:chamaId/disputes', disputeController.getDisputes);
+
+// Succession routes
+const successionController = require('../../controllers/successionController');
+router.post('/:chamaId/succession/deputy', successionController.setDeputy);
+router.post('/:chamaId/succession/handover', successionController.completeHandover);
+router.get('/:chamaId/succession', successionController.getSuccessionPlan);
+
+// Oversight routes
+const oversightController = require('../../controllers/oversightController');
+router.post('/:chamaId/audit', oversightController.requestAudit);
+router.get('/:chamaId/oversight', oversightController.getOversightDashboard);
