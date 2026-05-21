@@ -12,8 +12,14 @@ router.post('/login', validate('login'), authController.login);
 // Refresh token
 router.post('/refresh', authController.refreshToken);
 
-// Get profile
+// Get profile (with optional chamaId query param)
 router.get('/profile', authController.getProfile);
+
+// Update profile
+router.put('/profile', authController.updateProfile);
+
+// Change password
+router.post('/profile/change-password', authController.changePassword);
 
 // Logout
 router.post('/logout', authController.logout);
