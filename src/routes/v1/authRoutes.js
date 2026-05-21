@@ -11,6 +11,7 @@ router.post('/refresh', authController.refreshToken);
 
 // Protected routes (require token)
 router.get('/profile', verifyToken, authController.getProfile);
+router.get('/profile/chama/:chamaId', verifyToken, authController.getChamaProfile);
 router.put('/profile', verifyToken, authController.updateProfile);
 router.post('/logout', verifyToken, authController.logout);
 
