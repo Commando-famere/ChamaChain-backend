@@ -13,10 +13,10 @@ router.post('/confirm-payment', confirmPayment);
 router.get('/', getUserChamas);
 router.get('/:chamaId', getChama);
 
-// Member routes
+// Member routes (chairperson only)
 router.get('/:chamaId/members/all', memberController.getAllMembers);
 
-// Meeting routes
+// Meeting history
 router.get('/:chamaId/meetings/history', meetingController.getMeetingHistory);
 
 // Chairperson dashboard
