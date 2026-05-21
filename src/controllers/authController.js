@@ -244,4 +244,38 @@ const refreshToken = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getProfile, updateProfile, logout, refreshToken };
+module.exports = { register, login, getProfile, updateProfile, changePassword, logout, refreshToken };
+
+// Change password
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { current_password, new_password } = req.body;
+
+        const userResult = await query(
+            `SELECT password_hash FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return sendError(res, 'User not found', 404, 404);
+        }
+
+        const isValid = await comparePassword(current_password, userResult.rows[0].password_hash);
+        if (!isValid) {
+            return sendError(res, 'Current password is incorrect', 401, 401);
+        }
+
+        const hashedPassword = await hashPassword(new_password);
+
+        await query(
+            `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+            [hashedPassword, userId]
+        );
+
+        sendSuccess(res, null, 'Password changed successfully');
+    } catch (error) {
+        console.error('Change password error:', error);
+        sendError(res, 'Failed to change password', 500, 500);
+    }
+};
