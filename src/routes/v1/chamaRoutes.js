@@ -72,3 +72,13 @@ router.get('/:chamaId/succession', successionController.getSuccessionPlan);
 const oversightController = require('../../controllers/oversightController');
 router.post('/:chamaId/audit', oversightController.requestAudit);
 router.get('/:chamaId/oversight', oversightController.getOversightDashboard);
+
+// Chairperson dashboard
+const chairpersonDashboard = require('../../controllers/chairpersonDashboardController');
+router.get('/:chamaId/chairperson/dashboard', chairpersonDashboard.getChairpersonDashboard);
+
+// Members list (chairperson only)
+router.get('/:chamaId/members/all', memberController.getAllMembers);
+
+// Meeting history
+router.get('/:chamaId/meetings/history', meetingController.getMeetingHistory);

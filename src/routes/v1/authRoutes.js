@@ -13,6 +13,7 @@ router.post('/refresh', authController.refreshToken);
 router.get('/profile', verifyToken, authController.getProfile);
 router.get('/profile/chama/:chamaId', verifyToken, authController.getChamaProfile);
 router.put('/profile', verifyToken, authController.updateProfile);
+router.post(/profile/picture, verifyToken, authController.uploadProfilePicture);
 router.post('/logout', verifyToken, authController.logout);
 
 module.exports = router;

@@ -226,3 +226,39 @@ const removeMember = async (req, res) => {
 };
 
 module.exports = { getChamaMembers, getMemberDetails, updateMemberRole, removeMember };
+
+// Get all members with their roles (for chairperson)
+const getAllMembers = async (req, res) => {
+    try {
+        const { chamaId } = req.params;
+        const userId = req.user.id;
+
+        // Check if user is chairperson
+        const chairCheck = await query(
+            `SELECT id FROM group_members 
+             WHERE chama_id = $1 AND user_id = $2 AND role = 'chairperson' AND is_active = true`,
+            [chamaId, userId]
+        );
+
+        if (chairCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: 'Only chairperson can view all members' });
+        }
+
+        const members = await query(
+            `SELECT u.id, u.full_name, u.phone, u.email, u.profile_picture_url,
+                    gm.role, gm.chama_member_id, gm.joined_at, gm.regular_contribution_amount,
+                    COALESCE(mb.balance_usdt, 0) as balance
+             FROM group_members gm
+             JOIN users u ON gm.user_id = u.id
+             LEFT JOIN member_balances mb ON mb.member_id = u.id AND mb.chama_id = gm.chama_id
+             WHERE gm.chama_id = $1 AND gm.is_active = true
+             ORDER BY gm.role = 'chairperson' DESC, gm.joined_at ASC`,
+            [chamaId]
+        );
+
+        res.json({ success: true, data: members.rows, total: members.rows.length });
+    } catch (error) {
+        console.error('Get all members error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

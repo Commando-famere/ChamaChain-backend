@@ -241,3 +241,25 @@ const refreshToken = async (req, res) => {
 
 // EXPORT - MUST BE AT THE END
 module.exports = { register, login, getProfile, getChamaProfile, updateProfile, logout, refreshToken };
+
+// Upload profile picture
+const uploadProfilePicture = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { profile_picture_url } = req.body;
+
+        if (!profile_picture_url) {
+            return sendError(res, 'Profile picture URL is required', 400, 400);
+        }
+
+        await query(
+            `UPDATE users SET profile_picture_url = $1, updated_at = NOW() WHERE id = $2`,
+            [profile_picture_url, userId]
+        );
+
+        sendSuccess(res, { profile_picture_url }, 'Profile picture updated successfully');
+    } catch (error) {
+        console.error('Upload profile picture error:', error);
+        sendError(res, 'Failed to upload profile picture', 500, 500);
+    }
+};
