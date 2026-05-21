@@ -254,7 +254,7 @@ router.get('/:chamaId/dashboard', async (req, res) => {
         );
 
         const recentActivities = await query(
-            `SELECT activity_type, description, created_at
+            `SELECT activity_type, activity_type, created_at
              FROM chama_activity_log
              WHERE chama_id = $1
              ORDER BY created_at DESC
