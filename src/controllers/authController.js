@@ -156,11 +156,9 @@ const getChamaProfile = async (req, res) => {
                 `SELECT 
                     (SELECT COUNT(*) FROM meeting_minutes WHERE chama_id = $1) as total_meetings,
                     (SELECT COUNT(*) FROM group_members WHERE chama_id = $1 AND is_active = true) as total_members,
-                    (SELECT COUNT(*) FROM transaction_ledger WHERE chama_id = $1 AND approval_status = 'approved') as total_transactions,
                     (SELECT COUNT(*) FROM withdrawal_approvals WHERE chama_id = $1 AND status = "pending") as pending_withdrawals,
                     (SELECT COUNT(*) FROM loans WHERE chama_id = $1 AND status = "pending") as pending_loans,
                     (SELECT COUNT(*) FROM member_join_requests WHERE chama_id = $1 AND status = "pending") as pending_members,
-                    (SELECT COALESCE(SUM(amount), 0) FROM member_contributions WHERE chama_id = $1) as total_contributions,
                     (SELECT COUNT(*) FROM chama_disputes WHERE chama_id = $1 AND status = "pending") as active_disputes
                 `,
                 [chamaId]
@@ -199,11 +197,9 @@ const getChamaProfile = async (req, res) => {
                 statistics: {
                     total_meetings: parseInt(stats.rows[0].total_meetings) || 0,
                     total_members: parseInt(stats.rows[0].total_members) || 0,
-                    total_transactions: parseInt(stats.rows[0].total_transactions) || 0,
                     pending_withdrawals: parseInt(stats.rows[0].pending_withdrawals) || 0,
                     pending_loans: parseInt(stats.rows[0].pending_loans) || 0,
                     pending_members: parseInt(stats.rows[0].pending_members) || 0,
-                    total_contributions: parseFloat(stats.rows[0].total_contributions) || 0,
                     active_disputes: parseInt(stats.rows[0].active_disputes) || 0
                 },
                 recent_activities: recentActivities.rows,
