@@ -181,6 +181,20 @@ const getChamaProfile = async (req, res) => {
                  LIMIT 5`,
                 [chamaId]
             );
+            const permissions = {
+                can_preside_meetings: true,
+                can_enforce_constitution: true,
+                can_co_sign_transactions: true,
+                can_manage_disputes: true,
+                can_approve_members: true,
+                can_remove_members: true,
+                can_upgrade_plan: true,
+                can_create_votes: true,
+                can_process_payouts: true,
+                can_start_cycles: true,
+                can_assign_roles: true,
+                can_edit_settings: true
+            };
             profileData.chairperson_stats = {
                 statistics: {
                     total_meetings: parseInt(stats.rows[0].total_meetings) || 0,
@@ -193,7 +207,8 @@ const getChamaProfile = async (req, res) => {
                     active_disputes: parseInt(stats.rows[0].active_disputes) || 0
                 },
                 recent_activities: recentActivities.rows,
-                upcoming_meetings: upcomingMeetings.rows
+                upcoming_meetings: upcomingMeetings.rows,
+                permissions: permissions
             };
         }
         sendSuccess(res, profileData);
