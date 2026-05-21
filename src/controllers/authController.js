@@ -427,3 +427,59 @@ const refreshToken = async (req, res) => {
 };
 
 module.exports = { register, login, getProfile, logout, refreshToken, updateProfile, changePassword };
+
+// Update user profile
+const updateProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const {
+            full_name, email, bio, date_of_birth, gender,
+            county, town, occupation, profile_picture_url,
+            emergency_name, emergency_phone, alternative_phone, whatsapp_number
+        } = req.body;
+
+        const result = await query(
+            `UPDATE users 
+             SET full_name = COALESCE($1, full_name),
+                 email = COALESCE($2, email),
+                 bio = COALESCE($3, bio),
+                 date_of_birth = COALESCE($4, date_of_birth),
+                 gender = COALESCE($5, gender),
+                 county = COALESCE($6, county),
+                 town = COALESCE($7, town),
+                 occupation = COALESCE($8, occupation),
+                 profile_picture_url = COALESCE($9, profile_picture_url),
+                 emergency_name = COALESCE($10, emergency_name),
+                 emergency_phone = COALESCE($11, emergency_phone),
+                 alternative_phone = COALESCE($12, alternative_phone),
+                 whatsapp_number = COALESCE($13, whatsapp_number),
+                 updated_at = NOW()
+             WHERE id = $14
+             RETURNING id, phone, email, full_name, global_user_id, profile_picture_url,
+                       bio, date_of_birth, gender, county, town, occupation,
+                       emergency_name, emergency_phone, alternative_phone, whatsapp_number,
+                       account_status, created_at, updated_at`,
+            [
+                full_name || null, 
+                email || null, 
+                bio || null, 
+                date_of_birth || null, 
+                gender || null,
+                county || null, 
+                town || null, 
+                occupation || null, 
+                profile_picture_url || null,
+                emergency_name || null, 
+                emergency_phone || null, 
+                alternative_phone || null, 
+                whatsapp_number || null,
+                userId
+            ]
+        );
+
+        sendSuccess(res, { user: result.rows[0] }, 'Profile updated successfully');
+    } catch (error) {
+        console.error('Update profile error:', error);
+        sendError(res, 'Failed to update profile: ' + error.message, 500, 500);
+    }
+};
