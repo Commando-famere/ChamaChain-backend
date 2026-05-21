@@ -156,7 +156,7 @@ const getChamaProfile = async (req, res) => {
                 `SELECT 
                     (SELECT COUNT(*) FROM meeting_minutes WHERE chama_id = $1) as total_meetings,
                     (SELECT COUNT(*) FROM group_members WHERE chama_id = $1 AND is_active = true) as total_members,
-                    (SELECT COUNT(*) FROM transaction_ledger WHERE chama_id = $1 AND status = "approved") as total_transactions,
+                    (SELECT COUNT(*) FROM transaction_ledger WHERE chama_id = $1 AND approval_status = 'approved') as total_transactions,
                     (SELECT COUNT(*) FROM withdrawal_approvals WHERE chama_id = $1 AND status = "pending") as pending_withdrawals,
                     (SELECT COUNT(*) FROM loans WHERE chama_id = $1 AND status = "pending") as pending_loans,
                     (SELECT COUNT(*) FROM member_join_requests WHERE chama_id = $1 AND status = "pending") as pending_members,
