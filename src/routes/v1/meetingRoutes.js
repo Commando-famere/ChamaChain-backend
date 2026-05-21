@@ -8,20 +8,27 @@ const {
     getMeeting, 
     updateMeeting, 
     deleteMeeting,
-    recordAttendance 
+    recordAttendance,
+    getMeetingAttendance,
+    getMemberAttendanceHistory,
+    generateAttendanceReport
 } = require('../../controllers/meetingController');
 
-// All routes require authentication
+// All meeting routes require authentication and active chama
 router.use(verifyToken);
+router.use(requireActiveChama);
 
-// Meeting minutes
-router.post('/chamas/:chamaId/meetings', requireActiveChama, createMeeting);
+// Meeting minutes CRUD
+router.post('/chamas/:chamaId/meetings', createMeeting);
 router.get('/chamas/:chamaId/meetings', getMeetings);
 router.get('/chamas/:chamaId/meetings/:meetingId', getMeeting);
 router.put('/chamas/:chamaId/meetings/:meetingId', updateMeeting);
 router.delete('/chamas/:chamaId/meetings/:meetingId', deleteMeeting);
 
-// Attendance
-router.post('/chamas/:chamaId/meetings/:meetingId/attendance', requireActiveChama, recordAttendance);
+// Attendance routes
+router.post('/chamas/:chamaId/meetings/:meetingId/attendance', recordAttendance);
+router.get('/chamas/:chamaId/meetings/:meetingId/attendance', getMeetingAttendance);
+router.get('/chamas/:chamaId/attendance/member', getMemberAttendanceHistory);
+router.get('/chamas/:chamaId/attendance/report', generateAttendanceReport);
 
 module.exports = router;
