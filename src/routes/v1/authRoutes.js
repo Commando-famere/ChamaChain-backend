@@ -11,7 +11,6 @@ router.post('/login', validate('login'), authController.login);
 router.post('/refresh', authController.refreshToken);
 router.get('/profile', authController.getProfile);
 router.put('/profile', authController.updateProfile);
-router.post('/profile/change-password', authController.changePassword);
 router.post('/logout', authController.logout);
 
 module.exports = router;
