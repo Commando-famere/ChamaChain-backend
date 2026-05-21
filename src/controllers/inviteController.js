@@ -23,7 +23,7 @@ async function generateInviteLink(req, res) {
         );
         
         const baseUrl = process.env.BASE_URL || 'http://localhost:8080';
-        const inviteLink = `${baseUrl}/invite?token=${token}`;
+        const inviteLink = `${baseUrl}/invite.html?token=${token}`;
         
         res.json({
             success: true,

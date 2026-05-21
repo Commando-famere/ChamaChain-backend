@@ -159,7 +159,7 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
         );
         
         const baseUrl = process.env.BASE_URL || 'https://marvelous-nourishment-production-fef4.up.railway.app';
-        const inviteLink = `${baseUrl}/invite?token=${token}`;
+        const inviteLink = `${baseUrl}/invite.html?token=${token}`;
         
         res.json({
             success: true,
