@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
 const { createChama, confirmPayment, getUserChamas, getChama } = require('../../controllers/chamaController');
+const memberController = require('../../controllers/memberController');
+const meetingController = require('../../controllers/meetingController');
 
 router.use(verifyToken);
 
@@ -16,8 +18,6 @@ router.get('/', getUserChamas);
 
 // Get chama details
 router.get('/:chamaId', getChama);
-
-module.exports = router;
 
 // Contribution cycles routes
 const cycleController = require('../../controllers/cycleController');
