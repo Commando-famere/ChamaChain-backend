@@ -5,59 +5,36 @@ const { verifyToken, isChairperson } = require('../../middleware/auth');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { ROLES, getRoleRequirements, hasPermission, getAllRoles } = require('../../config/roles');
 
-// Role-specific registration requirements
-const ROLE_REQUIREMENTS = {
-    chairperson: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'business_name', 'business_reg_number', 'bank_name', 'bank_account', 'tax_id'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'business_name'],
-        validations: {
-            national_id: { min: 7, max: 8, pattern: '^[0-9]+$' },
-            phone: { pattern: '^254[0-9]{9}$' },
-            business_reg: { required: false, pattern: '^[A-Z0-9]{10,15}$' }
-        },
-        permissions: ['manage_all', 'approve_members', 'remove_members', 'upgrade_plan', 'manage_finances']
-    },
-    treasurer: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'bank_name', 'bank_account', 'referee_name', 'referee_phone'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'bank_name', 'bank_account'],
-        validations: {
-            bank_account: { min: 10, max: 16, pattern: '^[0-9]+$' },
-            referee_phone: { pattern: '^254[0-9]{9}$' }
-        },
-        permissions: ['view_finances', 'record_transactions', 'reconcile_accounts']
-    },
-    secretary: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'whatsapp_number', 'communication_preference'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'whatsapp_number'],
-        validations: {
-            whatsapp_number: { pattern: '^254[0-9]{9}$' },
-            email: { required: true }
-        },
-        permissions: ['record_minutes', 'send_notifications', 'manage_meetings', 'track_attendance']
-    },
-    vice_chairperson: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone'],
-        permissions: ['assist_chairperson', 'preside_meetings', 'co_sign']
-    },
-    assistant_secretary: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone', 'whatsapp_number'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone'],
-        permissions: ['assist_secretary', 'record_attendance', 'send_reminders']
-    },
-    member: {
-        fields: ['full_name', 'phone', 'email', 'password', 'national_id', 'emergency_name', 'emergency_phone'],
-        required: ['full_name', 'phone', 'password', 'national_id', 'emergency_name', 'emergency_phone'],
-        permissions: ['view_chama', 'contribute', 'attend_meetings', 'vote']
-    }
-};
+// Get all available roles
+router.get('/roles', async (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            roles: getAllRoles(),
+            role_hierarchy: {
+                chairperson: 10,
+                vice_chairperson: 9,
+                auditor: 8,
+                treasurer: 7,
+                secretary: 7,
+                assistant_treasurer: 6,
+                assistant_secretary: 6,
+                committee_member: 5,
+                loan_officer: 5,
+                welfare_coordinator: 4,
+                member: 1
+            }
+        }
+    });
+});
 
-// Get registration requirements by role
+// Get registration requirements for a specific role
 router.get('/requirements/:role', async (req, res) => {
     try {
         const { role } = req.params;
-        const requirements = ROLE_REQUIREMENTS[role] || ROLE_REQUIREMENTS.member;
+        const requirements = getRoleRequirements(role);
         
         res.json({
             success: true,
@@ -66,8 +43,7 @@ router.get('/requirements/:role', async (req, res) => {
                 fields: requirements.fields,
                 required_fields: requirements.required,
                 validations: requirements.validations,
-                permissions: requirements.permissions,
-                message: `Please provide the following information to join as ${role}`
+                permissions: hasPermission(role, 'level') ? 'admin' : 'member'
             }
         });
     } catch (error) {
@@ -103,15 +79,13 @@ router.get('/verify', async (req, res) => {
 
         const invite = result.rows[0];
         const role = invite.role;
-        const requirements = ROLE_REQUIREMENTS[role] || ROLE_REQUIREMENTS.member;
+        const requirements = getRoleRequirements(role);
 
-        // Get chama member count
         const memberCount = await query(
             `SELECT COUNT(*) as count FROM group_members WHERE chama_id = $1 AND is_active = true`,
             [invite.chama_id]
         );
 
-        // Get existing roles in chama
         const existingRoles = await query(
             `SELECT DISTINCT role FROM group_members WHERE chama_id = $1`,
             [invite.chama_id]
@@ -145,8 +119,7 @@ router.get('/verify', async (req, res) => {
                     role: role,
                     fields: requirements.fields,
                     required_fields: requirements.required,
-                    validations: requirements.validations,
-                    permissions: requirements.permissions
+                    validations: requirements.validations
                 }
             }
         });
@@ -179,7 +152,7 @@ router.post('/register', async (req, res) => {
 
         const invite = inviteResult.rows[0];
         const role = invite.role;
-        const requirements = ROLE_REQUIREMENTS[role] || ROLE_REQUIREMENTS.member;
+        const requirements = getRoleRequirements(role);
 
         // Validate required fields based on role
         for (const field of requirements.required) {
@@ -188,20 +161,6 @@ router.post('/register', async (req, res) => {
                     success: false, 
                     message: `${field.replace(/_/g, ' ')} is required for ${role} role` 
                 });
-            }
-        }
-
-        // Role-specific validations
-        if (role === 'treasurer' && user_data.bank_account) {
-            if (!/^[0-9]{10,16}$/.test(user_data.bank_account)) {
-                return res.status(400).json({ success: false, message: 'Invalid bank account number' });
-            }
-        }
-
-        if (role === 'chairperson' && user_data.business_name) {
-            // Additional validation for business registration
-            if (user_data.business_reg_number && user_data.business_reg_number.length < 5) {
-                return res.status(400).json({ success: false, message: 'Invalid business registration number' });
             }
         }
 
@@ -219,18 +178,6 @@ router.post('/register', async (req, res) => {
             const randomNum = Math.floor(Math.random() * 900000) + 100000;
             const global_user_id = `USR-${randomNum}`;
 
-            // Store role-specific fields
-            const extraData = {
-                business_name: user_data.business_name || null,
-                business_reg_number: user_data.business_reg_number || null,
-                bank_name: user_data.bank_name || null,
-                bank_account: user_data.bank_account || null,
-                referee_name: user_data.referee_name || null,
-                referee_phone: user_data.referee_phone || null,
-                whatsapp_number: user_data.whatsapp_number || null,
-                communication_preference: user_data.communication_preference || 'email'
-            };
-
             const newUser = await query(
                 `INSERT INTO users (phone, full_name, password_hash, global_user_id, email, national_id, 
                                     emergency_name, emergency_phone, extra_data)
@@ -245,7 +192,7 @@ router.post('/register', async (req, res) => {
                     user_data.national_id || null,
                     user_data.emergency_name || null,
                     user_data.emergency_phone || null,
-                    JSON.stringify(extraData)
+                    JSON.stringify(user_data)
                 ]
             );
             userId = newUser.rows[0].id;
@@ -294,8 +241,7 @@ router.post('/register', async (req, res) => {
                     phone: user_data.phone,
                     full_name: user_data.full_name,
                     email: user_data.email,
-                    role: invite.role,
-                    permissions: (ROLE_REQUIREMENTS[invite.role] || ROLE_REQUIREMENTS.member).permissions
+                    role: invite.role
                 },
                 chama: {
                     id: invite.chama_id,
@@ -320,8 +266,9 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
         const userId = req.user.id;
 
         // Validate role exists
-        if (!ROLE_REQUIREMENTS[role]) {
-            return res.status(400).json({ success: false, message: 'Invalid role specified' });
+        const validRoles = getAllRoles();
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ success: false, message: `Invalid role. Valid roles: ${validRoles.join(', ')}` });
         }
 
         const token = crypto.randomBytes(32).toString('hex');
@@ -348,6 +295,8 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
             [chamaId]
         );
 
+        const requirements = getRoleRequirements(role);
+
         res.json({
             success: true,
             message: `Invite link generated for ${role} role`,
@@ -357,8 +306,7 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
                     token: result.rows[0].token,
                     role: result.rows[0].role,
                     expires_at: result.rows[0].expires_at,
-                    link: inviteLink,
-                    requirements: ROLE_REQUIREMENTS[role]
+                    link: inviteLink
                 },
                 chama: {
                     id: chamaId,
@@ -370,6 +318,12 @@ router.post('/chamas/:chamaId/invite', verifyToken, isChairperson, async (req, r
                     name: inviter.rows[0].full_name,
                     phone: inviter.rows[0].phone,
                     email: inviter.rows[0].email
+                },
+                registration_requirements: {
+                    role: role,
+                    fields: requirements.fields,
+                    required_fields: requirements.required,
+                    validations: requirements.validations
                 },
                 personal_message: message || null
             }
