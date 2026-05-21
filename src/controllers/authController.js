@@ -49,7 +49,7 @@ const register = async (req, res) => {
         sendSuccess(res, { user, token, session_expires_in: 300 }, 'User registered successfully', SUCCESS.CREATED);
     } catch (error) {
         console.error('Register error:', error);
-        sendError(res, 'Registration failed', 500, 500);
+        sendError(res, 'Registration failed: ' + error.message, 500, 500);
     }
 };
 
@@ -82,13 +82,22 @@ const login = async (req, res) => {
         }, 'Login successful');
     } catch (error) {
         console.error('Login error:', error);
-        sendError(res, 'Login failed', 500, 500);
+        sendError(res, 'Login failed: ' + error.message, 500, 500);
     }
 };
 
 const getProfile = async (req, res) => {
     try {
+        console.log('getProfile called, user:', req.user);
+        
+        if (!req.user || !req.user.id) {
+            console.error('No user in request');
+            return sendError(res, 'Unauthorized', 401, 401);
+        }
+        
         const userId = req.user.id;
+        console.log('Fetching profile for userId:', userId);
+        
         const result = await query(
             `SELECT id, phone, email, full_name, global_user_id, profile_picture_url,
                     bio, date_of_birth, gender, county, town, occupation,
@@ -96,13 +105,17 @@ const getProfile = async (req, res) => {
              FROM users WHERE id = $1`,
             [userId]
         );
+        
+        console.log('Query result rows:', result.rows.length);
+        
         if (result.rows.length === 0) {
             return sendError(res, 'User not found', 404, 404);
         }
+        
         sendSuccess(res, { user: result.rows[0] });
     } catch (error) {
         console.error('Get profile error:', error);
-        sendError(res, 'Failed to get profile', 500, 500);
+        sendError(res, 'Failed to get profile: ' + error.message, 500, 500);
     }
 };
 
